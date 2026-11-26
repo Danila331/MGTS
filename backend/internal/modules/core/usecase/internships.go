@@ -31,7 +31,12 @@ func (s *Service) Interns(ctx context.Context, actorID string, filters InternFil
 	if err != nil {
 		return nil, err
 	}
+	return s.internList(state, actor, filters, false), nil
+}
+
+func (s *Service) internList(state *domain.State, actor domain.Actor, filters InternFilters, all bool) map[string]any {
 	scores := calculateInternshipScores(state)
+	histories := pulseHistories(state)
 	type scoredItem struct {
 		item  map[string]any
 		score internshipScore
@@ -63,9 +68,14 @@ func (s *Service) Interns(ctx context.Context, actorID string, filters InternFil
 			}
 		}
 		score := scores[internship.ID]
+		if actor.Role == domain.RoleHR || actor.Role == domain.RoleManager {
+			score.trafficLight = histories[internship.ID].Attention(score.trafficLight)
+		}
 		item := internshipFields(internship)
 		item["coverage"] = s.internCoverage(state, internship.ID)
-		item["dynamics"] = s.internTrends(state, internship.ID)
+		if !all {
+			item["dynamics"] = s.internTrends(state, internship.ID)
+		}
 		item["signal_count"] = len(signals)
 		mergeFields(item, score.fields())
 		scored = append(scored, scoredItem{item: item, score: score})
@@ -102,6 +112,9 @@ func (s *Service) Interns(ctx context.Context, actorID string, filters InternFil
 		start = total
 	}
 	end := start + 20
+	if all {
+		start, end = 0, total
+	}
 	if end > total {
 		end = total
 	}
@@ -109,7 +122,7 @@ func (s *Service) Interns(ctx context.Context, actorID string, filters InternFil
 	for _, entry := range scored[start:end] {
 		items = append(items, entry.item)
 	}
-	return map[string]any{"items": items, "total": total, "page": page}, nil
+	return map[string]any{"items": items, "total": total, "page": page}
 }
 
 func (s *Service) Internship(ctx context.Context, actorID, id string) (map[string]any, error) {
@@ -148,6 +161,10 @@ func (s *Service) Internship(ctx context.Context, actorID, id string) (map[strin
 	}
 	sort.Slice(timeline, func(i, j int) bool { return timeline[i]["at"].(time.Time).After(timeline[j]["at"].(time.Time)) })
 	score := calculateInternshipScores(state)[id]
+	history := pulseHistories(state)[id]
+	if actor.Role == domain.RoleHR || actor.Role == domain.RoleManager {
+		score.trafficLight = history.Attention(score.trafficLight)
+	}
 	coverage := s.internCoverage(state, id)
 	internshipDTO := mergeFields(internshipFields(internship), score.fields())
 	result := map[string]any{
@@ -158,6 +175,8 @@ func (s *Service) Internship(ctx context.Context, actorID, id string) (map[strin
 	}
 	if actor.Role == domain.RoleHR {
 		result["survey_signals"] = s.internSurveySignals(state, id, responses)
+		result["survey_analysis"] = s.surveyAnalysis(state, id, history)
+		result["candidate_id"] = state.CandidateLinks[id]
 	}
 	mergeFields(result, score.fields())
 	return result, nil

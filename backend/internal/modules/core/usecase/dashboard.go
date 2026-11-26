@@ -95,9 +95,30 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 		}
 	}
 
-	internList, err := s.Interns(ctx, actorID, InternFilters{})
-	if err != nil {
-		return nil, err
+	internList := s.internList(state, actor, InternFilters{}, true)
+	attentionCount := 0
+	for _, item := range internList["items"].([]map[string]any) {
+		if item["traffic_light"] == "yellow" || item["traffic_light"] == "red" {
+			attentionCount++
+		}
+	}
+	attention := []map[string]any{}
+	if actor.Role == domain.RoleHR {
+		histories := pulseHistories(state)
+		for _, internship := range internships {
+			history := histories[internship.ID]
+			if len(history.Findings) > 0 {
+				finding := history.Findings[0]
+				attention = append(attention, map[string]any{
+					"internship_id": internship.ID, "name": internship.Intern.Name,
+					"title": finding.Title, "severity": finding.Severity, "wave": finding.Wave,
+					"status": state.SurveyFollowUps[surveyFollowUpKey(internship.ID, history)].Status,
+				})
+			}
+		}
+		sort.SliceStable(attention, func(i, j int) bool {
+			return urgencyRank(attention[i]["severity"].(string)) > urgencyRank(attention[j]["severity"].(string))
+		})
 	}
 	scores := calculateInternshipScores(state)
 	latestValues, overallValues := []float64{}, []float64{}
@@ -114,10 +135,11 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 	return map[string]any{
 		"metrics": map[string]any{
 			"interns": len(internships), "average_coverage": coverage,
-			"active_cohorts": len(cohorts), "average_score": latestAverage,
+			"active_cohorts": len(cohorts), "average_score": latestAverage, "attention": attentionCount,
 		},
 		"items": internList["items"], "dimension_trends": buildTrends(points), "cohorts": cohorts,
 		"survey_participation": participation,
+		"attention_queue":      attention,
 		"coverage":             map[string]any{"invited": invited, "submitted": submitted, "unique": len(unique), "percent": coverage},
 		"averages": map[string]any{
 			"latest_score": latestAverage, "overall_score": avg(overallValues),

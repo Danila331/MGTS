@@ -15,9 +15,11 @@ export const dimensionLabels: Record<string, string> = {
 };
 export function formatDate(value?: string, withTime = false) {
   if (!value) return "—";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
   return new Intl.DateTimeFormat("ru-RU", withTime
     ? { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }
-    : { day: "numeric", month: "short", year: "numeric" }).format(new Date(value));
+    : { day: "numeric", month: "short", year: "numeric" }).format(date);
 }
 export function plural(n: number, forms: [string, string, string]) {
   const m = n % 100;

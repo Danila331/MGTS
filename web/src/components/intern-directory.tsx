@@ -12,9 +12,9 @@ import type { InternItem, TrafficLight } from "@/lib/types";
 export type InternSort = "percentile" | "score" | "name";
 export const formatScore = (value: number | null) => value === null ? "—" : value.toFixed(1);
 
-const trafficLabels: Record<TrafficLight, string> = { green: "Стабильно", yellow: "Внимание", red: "Риск" };
+const trafficLabels: Record<TrafficLight, string> = { green: "Стабильно", yellow: "Внимание", red: "Риск", gray: "Нет данных" };
 export function TrafficLightBadge({ value }: { value: TrafficLight }) {
-  const tone = value === "green" ? "success" : value === "yellow" ? "warning" : "danger";
+  const tone = value === "green" ? "success" : value === "yellow" ? "warning" : value === "red" ? "danger" : "neutral";
   return <Badge tone={tone}><span className="mr-1.5 size-1.5 rounded-full bg-current" aria-hidden />{trafficLabels[value]}</Badge>;
 }
 export function PercentileRange({ item }: { item: Pick<InternItem, "percentile_label" | "percentile_min" | "percentile_max"> }) {

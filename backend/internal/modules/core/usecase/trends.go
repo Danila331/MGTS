@@ -49,14 +49,16 @@ func buildTrends(points []domain.MetricPoint) []map[string]any {
 		series := []map[string]any{}
 		all := []float64{}
 		var previous *float64
+		previousWave := 0
 		for _, wave := range waves {
 			value := avg(group.byWave[wave])
 			point := map[string]any{"wave": wave, "period": fmt.Sprintf("Месяц %d", wave), "value": value, "responses": len(group.byWave[wave]), "delta": nil}
-			if previous != nil {
+			if previous != nil && previousWave == wave-1 {
 				point["delta"] = value - *previous
 			}
 			previousValue := value
 			previous = &previousValue
+			previousWave = wave
 			series = append(series, point)
 			all = append(all, group.byWave[wave]...)
 		}

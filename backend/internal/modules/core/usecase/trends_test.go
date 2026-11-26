@@ -16,6 +16,7 @@ func TestTrendsSeparateQuestionVersionsScalesAndRoles(t *testing.T) {
 		{ID: "p2", Dimension: "clarity", Role: domain.RoleIntern, QuestionID: "q1", QuestionVersion: 1, ScaleMin: 1, ScaleMax: 5, ScaleSignature: "q1-v1", Wave: 2, Value: 2, CreatedAt: now},
 		{ID: "p3", Dimension: "clarity", Role: domain.RoleIntern, QuestionID: "q1", QuestionVersion: 2, ScaleMin: 1, ScaleMax: 10, ScaleSignature: "q1-v2", Wave: 3, Value: 8, CreatedAt: now},
 		{ID: "p4", Dimension: "clarity", Role: domain.RoleMentor, QuestionID: "q1", QuestionVersion: 1, ScaleMin: 1, ScaleMax: 5, ScaleSignature: "q1-v1", Wave: 1, Value: 1, CreatedAt: now},
+		{ID: "p5", Dimension: "clarity", Role: domain.RoleIntern, QuestionID: "q1", QuestionVersion: 1, ScaleMin: 1, ScaleMax: 5, ScaleSignature: "q1-v1", Wave: 4, Value: 5, CreatedAt: now},
 	}
 	trends := buildTrends(points)
 	if len(trends) != 3 {
@@ -27,7 +28,7 @@ func TestTrendsSeparateQuestionVersionsScalesAndRoles(t *testing.T) {
 		bySignatureAndRole[key] = trend["points"].([]map[string]any)
 	}
 	compatible := bySignatureAndRole["q1-v1/intern"]
-	if len(compatible) != 2 || compatible[0]["delta"] != nil || compatible[1]["delta"].(float64) != -2 {
+	if len(compatible) != 3 || compatible[0]["delta"] != nil || compatible[1]["delta"] != -2.0 || compatible[2]["delta"] != nil {
 		t.Fatalf("compatible delta is wrong: %v", compatible)
 	}
 	if compatible[0]["period"] != "Месяц 1" {

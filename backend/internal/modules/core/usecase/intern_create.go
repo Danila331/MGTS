@@ -10,9 +10,10 @@ import (
 )
 
 type NewIntern struct {
-	Name     string `json:"name"`
-	TeamID   string `json:"team_id"`
-	MentorID string `json:"mentor_id"`
+	Name            string `json:"name"`
+	TeamID          string `json:"team_id"`
+	MentorID        string `json:"mentor_id"`
+	IdentitySubject string `json:"identity_subject"`
 }
 
 func (s *Service) InternOptions(ctx context.Context, actorID string) (map[string]any, error) {
@@ -41,6 +42,13 @@ func (s *Service) CreateIntern(ctx context.Context, actorID string, input NewInt
 	err := s.store.Update(ctx, func(state *domain.State) error {
 		if err := s.requireSurveyHR(state, actorID); err != nil {
 			return err
+		}
+		subject := strings.TrimSpace(input.IdentitySubject)
+		if len(subject) > 255 {
+			return invalid("SSO subject превышает 255 символов")
+		}
+		if subject != "" && state.IdentitySubjects[subject] != "" {
+			return domain.ErrAlreadyExists
 		}
 		words := strings.Fields(input.Name)
 		name := strings.Join(words, " ")
@@ -83,29 +91,14 @@ func (s *Service) CreateIntern(ctx context.Context, actorID string, input NewInt
 		result = domain.Internship{
 			ID: state.NextID("internship"), Intern: intern, Program: cohort.Program, CohortID: cohort.ID, Cohort: cohort.Name,
 			TeamID: team.ID, Team: team.Name, Stage: "Месяц 1", ManagerID: manager.ID, Manager: manager.Name,
-			MentorID: mentor.ID, Mentor: mentor.Name, LastActivity: now,
+			MentorID: mentor.ID, Mentor: mentor.Name, StartedAt: &now, LastActivity: now,
 		}
 		state.Actors[intern.ID] = domain.Actor{ID: intern.ID, Name: name, Role: domain.RoleIntern, TeamID: team.ID, InternshipID: result.ID, Initials: intern.Initials}
 		state.Internships[result.ID] = result
-		for _, table := range pulseTables {
-			var survey domain.Survey
-			for _, id := range domain.SortedKeys(state.Surveys) {
-				candidate := state.Surveys[id]
-				if candidate.Status == "published" && isPulseSurvey(table, candidate, 1) && (survey.ID == "" || candidate.UpdatedAt.After(survey.UpdatedAt)) {
-					survey = candidate
-				}
-			}
-			if survey.ID == "" {
-				continue
-			}
-			respondent := intern.ID
-			if table.role == domain.RoleMentor {
-				respondent = mentor.ID
-			}
-			assignment := domain.Assignment{ID: state.NextID("assignment"), SurveyID: survey.ID, InternshipID: result.ID,
-				RespondentID: respondent, Status: "assigned", DueAt: now.AddDate(0, 1, 0)}
-			state.Assignments[assignment.ID] = assignment
+		if subject != "" {
+			state.IdentitySubjects[subject] = intern.ID
 		}
+		openPulseWave(state, result, 1, addControlMonth(now, 1))
 		state.Touch()
 		return nil
 	})

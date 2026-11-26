@@ -49,6 +49,8 @@ type Internship struct {
 	Progress     int       `json:"progress"`
 	Settings     Map       `json:"settings,omitempty"`
 	LastActivity time.Time `json:"last_activity"`
+
+	StartedAt *time.Time `json:"started_at,omitempty"`
 }
 
 type Person struct {
@@ -352,4 +354,11 @@ type State struct {
 	AILogs           map[string]AILog           `json:"ai_logs"`
 	Notifications    map[string]Notification    `json:"notifications"`
 	Settings         Settings                   `json:"settings"`
+
+	IdentitySubjects   map[string]string            `json:"identity_subjects"`
+	SurveyAnalysisJobs map[string]SurveyAnalysisJob `json:"survey_analysis_jobs"`
+	SurveyFollowUps    map[string]SurveyFollowUp    `json:"survey_follow_ups"`
+	CandidateLinks     map[string]int               `json:"candidate_links"`
+	InternshipRecaps   map[string]InternshipRecap   `json:"internship_recaps"`
+	HRContacts         map[string]HRContact         `json:"hr_contacts"`
 }

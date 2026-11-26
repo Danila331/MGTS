@@ -6,21 +6,23 @@ import { normalizeRemote, prepareRemoteBody, prepareRemotePath, toBackendId } fr
 const BASE = "/api/v1";
 const API_MODE = process.env.NEXT_PUBLIC_API_MODE ?? "auto";
 let currentActor = "a-hr";
+let actorFromSession = false;
+let transport: "remote" | "mock" | undefined;
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code = "api_error") { super(message); }
 }
-export function setApiActor(id: string) { currentActor = id; }
+export function setApiActor(id: string, verified = actorFromSession) { currentActor = id; actorFromSession = verified; }
 export function getApiActor() { return currentActor; }
-export function getApiMode() { return API_MODE; }
+export function getApiMode() { return transport ?? API_MODE; }
 
 async function rawRemote(path: string, init: RequestInit = {}, actorId = currentActor) {
   const headers = new Headers(init.headers);
   if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const fullPath = path.startsWith(BASE) ? path : `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const url = new URL(prepareRemotePath(fullPath), "http://remote.local");
-  url.searchParams.set("actor_id", toBackendId(actorId));
-  return fetch(`${url.pathname}${url.search}`, { ...init, headers, cache: "no-store" });
+  if (!actorFromSession) url.searchParams.set("actor_id", toBackendId(actorId));
+  return fetch(`${url.pathname}${url.search}`, { ...init, headers, cache: "no-store", signal: init.signal ?? AbortSignal.timeout(30000) });
 }
 async function errorFromResponse(response: Response) {
   let message = `Ошибка Go API · ${response.status}`; let code = "api_error";
@@ -35,7 +37,7 @@ async function errorFromResponse(response: Response) {
 }
 
 export async function surveyFileRequest(path: string, init: RequestInit = {}) {
-  if (API_MODE === "mock") throw new ApiError(0, "Импорт и выгрузка доступны в режиме Go API", "mock_mode");
+  if (getApiMode() === "mock") throw new ApiError(0, "Импорт и выгрузка доступны при подключении к серверу Пульса", "mock_mode");
   let response: Response;
   try {
     response = await rawRemote(path, init);
@@ -46,44 +48,43 @@ export async function surveyFileRequest(path: string, init: RequestInit = {}) {
   return response;
 }
 
-async function remote<T>(path: string, init: RequestInit, actorId: string, allowMock: boolean): Promise<T> {
+async function local<T>(path: string, actorId: string, init: RequestInit): Promise<T> {
+  try { return await mockRequest<T>(path, actorId, init); }
+  catch (error) { if (error instanceof MockHttpError) throw new ApiError(error.status, error.message); throw error; }
+}
+
+async function remote<T>(path: string, init: RequestInit, actorId: string): Promise<T> {
   const remoteInit = { ...init };
-  if (init.body) remoteInit.body = JSON.stringify(prepareRemoteBody(path, JSON.parse(String(init.body)), actorId));
+  if (init.body) remoteInit.body = JSON.stringify(prepareRemoteBody(JSON.parse(String(init.body))));
   let response: Response;
   try { response = await rawRemote(path, remoteInit, actorId); }
-  catch {
-    if (allowMock) {
-      try { return await mockRequest<T>(path, actorId, init); }
-      catch (mockError) { if (mockError instanceof MockHttpError) throw new ApiError(mockError.status, mockError.message); throw mockError; }
-    }
-    throw new ApiError(0, "Go API недоступен. Проверьте http://127.0.0.1:8080/api/v1", "network_error");
-  }
-  if (!response.ok) {
-    if (allowMock && response.status >= 500) {
-      try { return await mockRequest<T>(path, actorId, init); }
-      catch (mockError) { if (mockError instanceof MockHttpError) throw new ApiError(mockError.status, mockError.message); throw mockError; }
-    }
-    throw await errorFromResponse(response);
-  }
+  catch { throw new ApiError(0, "Не удалось связаться с сервером Пульса", "network_error"); }
+  if (!response.ok) throw await errorFromResponse(response);
   const payload = await response.json() as unknown;
-  return normalizeRemote<T>(path, payload, async (referencePath) => {
-    const reference = await rawRemote(referencePath, {}, actorId);
-    if (!reference.ok) throw await errorFromResponse(reference);
-    return reference.json() as unknown;
-  });
+  return normalizeRemote<T>(path, payload);
 }
 
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(actorId: string, path: string, init: RequestInit): Promise<T> {
   const url = `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  if (API_MODE === "mock") {
-    try { return await mockRequest<T>(url, currentActor, init); }
-    catch (error) { if (error instanceof MockHttpError) throw new ApiError(error.status, error.message); throw error; }
+  if (getApiMode() === "mock") return local<T>(url, actorId, init);
+  if (API_MODE !== "auto" || transport || url !== `${BASE}/actors` || init.method) return remote<T>(url, init, actorId);
+
+  // Keep the source chosen when loading the profile for all reads and writes in this session.
+  try {
+    const result = await remote<T>(url, init, actorId);
+    transport = "remote";
+    return result;
+  } catch (error) {
+    if (!(error instanceof ApiError) || (error.status !== 0 && error.status < 500)) throw error;
+    const result = await local<T>(url, actorId, init);
+    transport = "mock";
+    return result;
   }
-  return remote<T>(url, init, currentActor, API_MODE === "auto");
 }
 
-export const getAs = <T,>(actorId: string, path: string) => remote<T>(path, {}, actorId, false);
-export const postAs = <T,>(actorId: string, path: string, body: unknown) => remote<T>(path, { method: "POST", body: JSON.stringify(body) }, actorId, false);
+export const api = <T,>(path: string, init: RequestInit = {}) => request<T>(currentActor, path, init);
+export const getAs = <T,>(actorId: string, path: string) => request<T>(actorId, path, {});
+export const postAs = <T,>(actorId: string, path: string, body: unknown) => request<T>(actorId, path, { method: "POST", body: JSON.stringify(body) });
 
 export const get = <T,>(path: string) => api<T>(path);
 export const post = <T,>(path: string, body?: unknown) => api<T>(path, { method: "POST", body: body === undefined ? undefined : JSON.stringify(body) });

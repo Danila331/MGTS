@@ -5,22 +5,32 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"mgts/backend/internal/modules/core/domain"
 	"mgts/backend/internal/modules/core/usecase"
 )
 
-type handler struct{ svc *usecase.Service }
+type handler struct {
+	svc     *usecase.Service
+	options ServerOptions
+}
 
 func (h *handler) actors(c echo.Context) error {
+	if c.Get(secureActorKey) == true {
+		return c.JSON(http.StatusOK, map[string]any{"items": []domain.Actor{actor(c)}, "demo": false})
+	}
 	items, err := h.svc.Actors(c.Request().Context())
 	if err != nil {
 		return err
 	}
-	return c.JSON(http.StatusOK, map[string]any{"items": items})
+	return c.JSON(http.StatusOK, map[string]any{"items": items, "demo": true})
 }
 func (h *handler) bootstrap(c echo.Context) error {
 	result, err := h.svc.Bootstrap(c.Request().Context(), actor(c).ID)
 	if err != nil {
 		return err
+	}
+	if c.Get(secureActorKey) == true {
+		result["actors"] = []domain.Actor{actor(c)}
 	}
 	return c.JSON(http.StatusOK, result)
 }

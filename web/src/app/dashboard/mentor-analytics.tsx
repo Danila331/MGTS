@@ -34,8 +34,8 @@ const demo = createDemoMentors();
 type ChooseMentor = (row: MentorRow) => void;
 
 export default function MentorAnalytics() {
-  const { actor } = useApp();
-  const { data, error, loading, reload } = useResource(() => getAs<{ mentors: MentorProfile[] }>(actor.id, "/dashboard/mentors"), [actor.id]);
+  const { actor, demo } = useApp();
+  const { data, error, loading, reload } = useResource(() => getAs<{ mentors: MentorProfile[] }>(actor.id, "/dashboard/mentors"), [actor.id], 12000);
   const [root, setRoot] = useState<ShadowRoot | null>(null);
   const connect = useCallback((host: HTMLDivElement | null) => {
     if (host) setRoot(host.shadowRoot ?? host.attachShadow({ mode: "open" }));
@@ -43,11 +43,11 @@ export default function MentorAnalytics() {
 
   return <>
     <div ref={connect} />
-    {root && createPortal(<><style>{analyticsStyles + extraStyles}</style><MentorOverview profiles={data?.mentors ?? []} loading={loading} error={error?.message} reload={reload} /></>, root)}
+    {root && createPortal(<><style>{analyticsStyles + extraStyles}</style><MentorOverview demoEnabled={demo} profiles={data?.mentors ?? []} loading={loading} error={error?.message} reload={reload} /></>, root)}
   </>;
 }
 
-function MentorOverview({ profiles, loading, error, reload }: { profiles: MentorProfile[]; loading: boolean; error?: string; reload: () => void }) {
+function MentorOverview({ demoEnabled, profiles, loading, error, reload }: { demoEnabled: boolean; profiles: MentorProfile[]; loading: boolean; error?: string; reload: () => void }) {
   const [dataset, setDataset] = useState<OverviewDataset>("live");
   const [mode, setMode] = useState<OverviewMode>("stage");
   const [selected, setSelected] = useState("");
@@ -87,7 +87,7 @@ function MentorOverview({ profiles, loading, error, reload }: { profiles: Mentor
       <div className="toolbar">
         <div className="dataset-switch" role="group" aria-label="Выбор данных наставников">
           <button type="button" aria-pressed={dataset === "live"} onClick={() => { setDataset("live"); resetPeriod(); }}>{profiles.length ? `Из базы · ${profiles.length}` : "Из базы"}</button>
-          <button type="button" aria-pressed={dataset === "demo"} onClick={() => { setDataset("demo"); resetPeriod(); }}>Демо · 50</button>
+          {demoEnabled && <button type="button" aria-pressed={dataset === "demo"} onClick={() => { setDataset("demo"); resetPeriod(); }}>Демо · 50</button>}
         </div>
         <div className="view-switch" role="group" aria-label="Режим дашборда наставников">
           <button type="button" aria-pressed={mode === "calendar"} onClick={() => { setMode("calendar"); resetPeriod(); }}>По календарю</button>

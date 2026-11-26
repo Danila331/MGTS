@@ -15,8 +15,9 @@ import (
 const DefaultActorID = "actor-hr"
 
 type Service struct {
-	store ports.Store
-	now   func() time.Time
+	store          ports.Store
+	now            func() time.Time
+	surveyAnalyzer SurveyAnalyzer
 }
 
 func New(store ports.Store) *Service              { return &Service{store: store, now: domain.Now} }
@@ -28,6 +29,17 @@ func (s *Service) actor(state *domain.State, actorID string) (domain.Actor, erro
 		actorID = DefaultActorID
 	}
 	return state.Actor(actorID)
+}
+
+func (s *Service) ResolveActor(ctx context.Context, id, subject string) (domain.Actor, error) {
+	state, err := s.store.Snapshot(ctx)
+	if err != nil {
+		return domain.Actor{}, err
+	}
+	if subject != "" {
+		id = state.IdentitySubjects[subject]
+	}
+	return state.Actor(id)
 }
 
 func (s *Service) Actors(ctx context.Context) ([]domain.Actor, error) {

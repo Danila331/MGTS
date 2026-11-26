@@ -1,15 +1,18 @@
 "use client";
 
 import { CheckCircle2, Send } from "lucide-react";
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
+import { useApp } from "@/components/app-provider";
 import { BrandLockup } from "@/components/brand";
 import { fieldClass } from "@/components/forms";
-import { Badge, ErrorState, LoadingState, Panel } from "@/components/page";
+import { Badge, EmptyState, ErrorState, LoadingState, Page, Panel } from "@/components/page";
 import { SurveyQuestions } from "@/components/survey-questions";
-import { Button } from "@/components/ui/button";
+import { ContactHR, SurveyVisibility } from "@/components/survey-guidance";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useResource } from "@/hooks/use-resource";
-import { getAs, postAs } from "@/lib/api";
-import { roleLabels } from "@/lib/format";
+import { get, getAs, postAs } from "@/lib/api";
+import { formatDate, roleLabels } from "@/lib/format";
 import type { Actor, Answers, AssignedSurveyList, Survey, SurveyAudience } from "@/lib/types";
 
 const formInfo = {
@@ -18,6 +21,43 @@ const formInfo = {
 } as const;
 
 export function SurveyFormView({ audience }: { audience: SurveyAudience }) {
+  const { actor, demo } = useApp();
+  if (demo) return <DemoSurveyForm audience={audience} />;
+
+  return <Page title={formInfo[audience].title} roles={[audience]}>
+    {actor.role === audience && <AccountSurveyList key={actor.id} audience={audience} />}
+  </Page>;
+}
+
+function AccountSurveyList({ audience }: { audience: SurveyAudience }) {
+  const { data, error, reload } = useResource(() => get<AssignedSurveyList>("/surveys"));
+  if (!data) return error ? <ErrorState error={error} retry={reload} /> : <LoadingState rows={3} />;
+  const items = data.items.filter((survey) => survey.audience === audience).flatMap((survey) =>
+    (data.assigned_internships[survey.id] ?? []).map((assignment) => ({ survey, assignment })),
+  ).sort((a, b) => Number(a.assignment.status === "submitted") - Number(b.assignment.status === "submitted")
+    || b.survey.wave.localeCompare(a.survey.wave, "ru", { numeric: true })
+    || a.assignment.intern_name.localeCompare(b.assignment.intern_name, "ru"));
+  if (!items.length) return <EmptyState title="Анкет пока нет" text="Здесь появятся анкеты, назначенные на вашу учётную запись." />;
+  return <Panel title="Мои анкеты">
+    <ul className="divide-y">
+      {items.map(({ survey, assignment }) => {
+        const submitted = assignment.status === "submitted";
+        const deadline = assignment.due_at || survey.due_at;
+        return <li key={`${survey.id}:${assignment.internship_id}`} className="flex flex-wrap items-center justify-between gap-3 py-3 first:pt-0 last:pb-0">
+          <div>
+            <p className="text-sm font-medium">{survey.title}{audience === "mentor" && ` · ${assignment.intern_name}`}</p>
+            <p className="mt-1 text-xs text-muted-foreground">{submitted ? "Ответ получен" : survey.status === "closed" ? "Период закрыт" : `Срок · ${formatDate(deadline)}`}</p>
+          </div>
+          <Link href={`/surveys/${survey.id}/take?${new URLSearchParams({ internship_id: assignment.internship_id })}`} className={buttonVariants({ variant: "outline", size: "sm" })}>
+            {submitted || survey.status === "closed" ? "Открыть" : "Ответить"}
+          </Link>
+        </li>;
+      })}
+    </ul>
+  </Panel>;
+}
+
+function DemoSurveyForm({ audience }: { audience: SurveyAudience }) {
   const { data, loading, error, reload } = useResource(() => getAs<{ items: Actor[] }>("a-hr", "/actors"), []);
   const [actorID, setActorID] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -143,13 +183,17 @@ function ResponseForm({ actorID, internshipID, survey, submitting, setSubmitting
   };
 
   return (
-    <form className="mt-5" onSubmit={submit}>
-      <Badge tone="info">{survey.period}</Badge>
-      <SurveyQuestions audience={survey.audience} questions={survey.questions} answers={answers} readOnly={submitting} update={(question, value) => setAnswers((current) => ({ ...current, [question.id]: value }))} />
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" disabled={submitting}><Send aria-hidden />{submitting ? "Отправляю…" : "Отправить ответ"}</Button>
-        {error && <p className="text-[13px] text-destructive" role="alert">{error}</p>}
-      </div>
-    </form>
+    <div className="mt-5">
+      <SurveyVisibility audience={survey.audience} />
+      <ContactHR surveyID={survey.id} internshipID={internshipID} actorID={actorID} />
+      <form className="mt-4" onSubmit={submit}>
+        <Badge tone="info">{survey.period}</Badge>
+        <SurveyQuestions audience={survey.audience} questions={survey.questions} answers={answers} readOnly={submitting} advice={{ surveyID: survey.id, internshipID, actorID }} update={(question, value) => setAnswers((current) => ({ ...current, [question.id]: value }))} />
+        <div className="mt-5 flex flex-wrap items-center gap-3">
+          <Button type="submit" size="lg" disabled={submitting}><Send aria-hidden />{submitting ? "Отправляю…" : "Отправить ответ"}</Button>
+          {error && <p className="text-[13px] text-destructive" role="alert">{error}</p>}
+        </div>
+      </form>
+    </div>
   );
 }

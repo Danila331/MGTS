@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useApp } from "@/components/app-provider";
 import { LineChart } from "@/components/charts";
+import { SurveyReminders } from "@/components/survey-reminders";
 import { Segmented } from "@/components/forms";
 import { formatScore } from "@/components/intern-directory";
 import { Avatar, Badge, EmptyState, ErrorState, InsufficientData, LoadingState, Page, Panel } from "@/components/page";
@@ -13,7 +14,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useResource } from "@/hooks/use-resource";
 import { get } from "@/lib/api";
 import { formatDate, initials } from "@/lib/format";
-import type { Actor, InternshipDetail, Survey } from "@/lib/types";
+import type { Actor, AssignedSurveyList, InternshipDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { averageScores, dashboardPeriods, pulseScore, trackedMetrics, type PeriodMode } from "./dashboard-data";
 import { PeriodPanels } from "./period-panels";
@@ -41,22 +42,26 @@ function InternDashboard({ actor, internshipId }: { actor: Actor; internshipId: 
   const { data, error, reload } = useResource(async () => {
     const [detail, surveys] = await Promise.all([
       get<InternshipDetail>(`/interns/${encodeURIComponent(internshipId)}`),
-      get<{ items: Survey[] }>("/surveys"),
+      get<AssignedSurveyList>("/surveys"),
     ]);
-    return { detail, surveys: surveys.items.filter((survey) => survey.audience === "intern") };
+    return { detail, surveys };
   });
 
   if (!data) return error ? <ErrorState error={error} retry={reload} /> : <LoadingState rows={6} />;
 
-  return <DashboardContent actor={actor} detail={data.detail} surveys={data.surveys} />;
+  return <div className="space-y-4"><SurveyReminders /><DashboardContent actor={actor} detail={data.detail} surveys={data.surveys} /></div>;
 }
 
-function DashboardContent({ actor, detail, surveys }: { actor: Actor; detail: InternshipDetail; surveys: Survey[] }) {
+function DashboardContent({ actor, detail, surveys: surveyList }: { actor: Actor; detail: InternshipDetail; surveys: AssignedSurveyList }) {
   const compact = useMediaQuery("(max-width: 639px)");
   const [mode, setMode] = useState<PeriodMode>("stage");
   const [selection, setSelection] = useState<Partial<Record<PeriodMode, string>>>({});
   const [metric, setMetric] = useState<MetricFilter>("all");
 
+  const surveys = surveyList.items.filter((survey) => survey.audience === "intern").map((survey) => {
+    const assignment = surveyList.assigned_internships?.[survey.id]?.find((item) => item.internship_id === detail.internship.id);
+    return { ...survey, due_at: assignment?.due_at || survey.due_at };
+  });
   const responses = detail.responses
     .filter((response) => response.internship_id === detail.internship.id)
     .sort((a, b) => Date.parse(b.submitted_at) - Date.parse(a.submitted_at));

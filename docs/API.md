@@ -85,3 +85,14 @@ Signal includes `{id,title,scope,internship_id,dimension,urgency,evidence_streng
 - `GET /settings` / `PATCH /settings` including `{show_feedback_to_intern, signal_thresholds}`
 
 All mutation endpoints return the changed entity. All GET responses are scoped to current actor.
+
+## Пилот Пульса
+
+- `GET /dashboard` возвращает `attention_queue` для HR с причиной, периодом и статусом шага. Светофор учитывает сигналы последнего контрольного периода.
+- `GET /interns/:id` возвращает HR поле `survey_analysis` с выводом модели, цитатами, статусом обработки, сигналами и шагом.
+- `POST /interns/:id/analysis/retry` перезапускает исчерпанную задачу ИИ по инициативе HR.
+- `PUT /interns/:id/follow-up` сохраняет от HR `note` и `status` (`in_progress` или `done`). Передача `review_version` из карточки защищает от сохранения шага поверх изменившейся анкеты или правки другого HR.
+- `GET /surveys/:id/tally-invites` возвращает HR персональные ссылки для открытых назначений.
+- `POST /integrations/tally/webhook` принимает подписанный Tally JSON. Старый универсальный вебхук включён в деморежиме.
+- `GET /integrations/status` возвращает состояние конфигурации Tally и Huntflow для HR.
+- `GET /interns/:id/candidate` и `PUT /interns/:id/candidate` показывают и меняют привязку к Huntflow. `candidate_id: 0` отвязывает запись.

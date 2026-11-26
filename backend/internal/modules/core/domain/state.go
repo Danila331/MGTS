@@ -8,6 +8,9 @@ import (
 
 func NewState() *State {
 	return &State{
+		IdentitySubjects:   map[string]string{},
+		SurveyAnalysisJobs: map[string]SurveyAnalysisJob{}, SurveyFollowUps: map[string]SurveyFollowUp{}, CandidateLinks: map[string]int{},
+		InternshipRecaps: map[string]InternshipRecap{}, HRContacts: map[string]HRContact{},
 		Actors: map[string]Actor{}, Teams: map[string]Team{}, Cohorts: map[string]Cohort{},
 		Internships: map[string]Internship{}, Surveys: map[string]Survey{}, Assignments: map[string]Assignment{},
 		Responses: map[string]Response{}, Metrics: map[string]MetricPoint{}, Signals: map[string]Signal{},
@@ -21,6 +24,24 @@ func NewState() *State {
 
 func (s *State) Normalize() {
 	defaults := NewState()
+	if s.IdentitySubjects == nil {
+		s.IdentitySubjects = defaults.IdentitySubjects
+	}
+	if s.SurveyAnalysisJobs == nil {
+		s.SurveyAnalysisJobs = defaults.SurveyAnalysisJobs
+	}
+	if s.SurveyFollowUps == nil {
+		s.SurveyFollowUps = defaults.SurveyFollowUps
+	}
+	if s.CandidateLinks == nil {
+		s.CandidateLinks = defaults.CandidateLinks
+	}
+	if s.InternshipRecaps == nil {
+		s.InternshipRecaps = defaults.InternshipRecaps
+	}
+	if s.HRContacts == nil {
+		s.HRContacts = defaults.HRContacts
+	}
 	if s.Actors == nil {
 		s.Actors = defaults.Actors
 	}

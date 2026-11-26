@@ -2,8 +2,10 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
+	"time"
 
 	analytics "mgts/backend/internal/modules/analytics/usecase"
 	"mgts/backend/internal/modules/core/domain"
@@ -11,8 +13,10 @@ import (
 
 type ExternalResponseInput struct {
 	ExternalID, SurveyID, InternshipID, RespondentID string
+	AssignmentID                                     string
 	Version                                          int
 	Answers                                          map[string]any
+	SubmittedAt                                      time.Time
 }
 
 func (s *Service) Integrations(ctx context.Context, actorID string) (map[string]any, error) {
@@ -131,7 +135,8 @@ func (s *Service) ingestExternal(state *domain.State, integrationID string, inpu
 	if !ok || survey.Status != "published" {
 		return domain.Response{}, false, domain.ErrNotFound
 	}
-	if _, ok := state.Internships[input.InternshipID]; !ok {
+	internship, ok := state.Internships[input.InternshipID]
+	if !ok {
 		return domain.Response{}, false, domain.ErrNotFound
 	}
 	respondent, ok := state.Actors[input.RespondentID]
@@ -143,10 +148,13 @@ func (s *Service) ingestExternal(state *domain.State, integrationID string, inpu
 	}
 	var assignment domain.Assignment
 	for _, candidate := range state.Assignments {
-		if candidate.SurveyID == input.SurveyID && candidate.InternshipID == input.InternshipID && candidate.RespondentID == input.RespondentID {
+		if (input.AssignmentID == "" || input.AssignmentID == candidate.ID) && candidate.SurveyID == input.SurveyID && candidate.InternshipID == input.InternshipID && candidate.RespondentID == input.RespondentID {
 			assignment = candidate
 			break
 		}
+	}
+	if assignment.ID == "" && input.AssignmentID != "" {
+		return domain.Response{}, false, domain.ErrNotFound
 	}
 	if assignment.ID == "" {
 		assignment.ID = state.NextID("assignment")
@@ -171,20 +179,26 @@ func (s *Service) ingestExternal(state *domain.State, integrationID string, inpu
 		return latestExternal, true, nil
 	}
 	now := s.now()
+	submittedAt := input.SubmittedAt
+	if submittedAt.IsZero() {
+		submittedAt = now
+	}
 	supersedeOtherActiveResponses(state, assignment.ID, "", now)
 	discardDrafts(state, assignment.ID)
 	responseID := state.NextID("response")
 	response := domain.Response{ID: responseID, SurveyID: input.SurveyID, AssignmentID: assignment.ID, InternshipID: input.InternshipID,
 		RespondentID: input.RespondentID, Respondent: respondent.Name, Role: respondent.Role, Wave: survey.Wave, Answers: cloneAnswers(input.Answers),
-		Status: "submitted", ExternalID: input.ExternalID, Version: input.Version, CreatedAt: now, UpdatedAt: now}
+		Status: "submitted", ExternalID: input.ExternalID, Version: input.Version, CreatedAt: submittedAt, UpdatedAt: now}
 	state.Responses[responseID] = response
 	state.Imports[key] = responseID
 	assignment.Status = "submitted"
-	assignment.SubmittedAt = &now
+	assignment.SubmittedAt = &submittedAt
 	state.Assignments[assignment.ID] = assignment
+	internship.LastActivity = now
+	state.Internships[internship.ID] = internship
 	analytics.Recalculate(state, response)
 	journalID := state.NextID("journal")
-	state.Journal[journalID] = domain.JournalEntry{ID: journalID, IntegrationID: integrationID, Event: "webhook_import", Status: "success", Message: "Ответ нормализован: " + key, Items: 1, CreatedAt: now}
+	state.Journal[journalID] = domain.JournalEntry{ID: journalID, IntegrationID: integrationID, Event: "webhook_import", Status: "success", Message: "Ответ нормализован", Items: 1, CreatedAt: now}
 	state.Touch()
 	return response, false, nil
 }
@@ -260,24 +274,21 @@ func (s *Service) ProcessNotifications(ctx context.Context) (int, error) {
 			}
 		}
 		for _, assignment := range state.Assignments {
-			if assignment.Status == "submitted" || assignment.DueAt.IsZero() || assignment.DueAt.After(now) {
+			if assignment.DueAt.IsZero() || assignment.DueAt.After(now.Add(48*time.Hour)) || !reminderEligible(state, assignment) {
 				continue
 			}
-			exists := false
-			for _, notification := range state.Notifications {
-				if notification.ActorID == assignment.RespondentID && notification.Kind == "reminder:"+assignment.ID {
-					exists = true
-				}
-			}
-			if !exists {
-				notificationID := state.NextID("notification")
-				state.Notifications[notificationID] = domain.Notification{ID: notificationID, ActorID: assignment.RespondentID, Kind: "reminder:" + assignment.ID, Message: "Срок анкеты истёк", Status: "pending", CreatedAt: now}
+			if queueReminder(state, assignment, now) {
+				processed++
 			}
 		}
-		if processed > 0 {
-			state.Touch()
+		if processed == 0 {
+			return errNoNotificationChange
 		}
+		state.Touch()
 		return nil
 	})
+	if errors.Is(err, errNoNotificationChange) {
+		return 0, nil
+	}
 	return processed, err
 }

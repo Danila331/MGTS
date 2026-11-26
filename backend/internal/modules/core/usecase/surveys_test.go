@@ -15,7 +15,6 @@ func TestSurveyListReturnsOnlyRespondentsAssignedSubjects(t *testing.T) {
 	ctx := context.Background()
 	state := memory.Seed()
 	service := New(memory.New(state))
-	want := []surveyAssignmentOption{{InternshipID: "internship-02", InternName: state.Internships["internship-02"].Intern.Name}}
 	for _, tc := range []struct{ actorID, ownSurvey, otherSurvey string }{
 		{"СТ-002", "survey-intern-6", "survey-mentor-6"},
 		{"Н-002", "survey-mentor-6", "survey-intern-6"},
@@ -26,6 +25,10 @@ func TestSurveyListReturnsOnlyRespondentsAssignedSubjects(t *testing.T) {
 				t.Fatal(err)
 			}
 			options := list["assigned_internships"].(map[string][]surveyAssignmentOption)
+			want := []surveyAssignmentOption{{
+				InternshipID: "internship-02", InternName: state.Internships["internship-02"].Intern.Name,
+				Status: "submitted", DueAt: state.Surveys[tc.ownSurvey].DueAt,
+			}}
 			if !reflect.DeepEqual(options[tc.ownSurvey], want) || len(options[tc.otherSurvey]) != 0 {
 				t.Fatalf("wrong scoped assignment options: %v", options)
 			}
@@ -103,5 +106,27 @@ func TestCorrectionDraftKeepsSubmittedAnswerAndCoverage(t *testing.T) {
 	}
 	if after.SurveyCoverage(surveyID) != before.SurveyCoverage(surveyID) || findMetric(t, after, corrected.ID, questionID).Value != 3 {
 		t.Fatal("submitting the correction did not update metrics while preserving coverage")
+	}
+
+	if err := store.Update(ctx, func(state *domain.State) error {
+		survey := state.Surveys[surveyID]
+		survey.Status = "closed"
+		state.Surveys[surveyID] = survey
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	take, err = service.TakeSurvey(ctx, actorID, surveyID, internshipID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if submitted, ok := take["submitted"].(*domain.Response); !ok || submitted == nil || submitted.Answers[questionID] != float64(3) {
+		t.Fatalf("closed survey did not return the submitted response: %+v", take)
+	}
+	if _, err := service.SaveDraft(ctx, actorID, surveyID, internshipID, answers); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("draft for a closed survey succeeded: %v", err)
+	}
+	if _, err := service.SubmitSurvey(ctx, actorID, surveyID, internshipID, answers); !errors.Is(err, domain.ErrConflict) {
+		t.Fatalf("submission for a closed survey succeeded: %v", err)
 	}
 }

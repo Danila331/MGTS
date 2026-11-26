@@ -11,13 +11,13 @@ import type {
   Question,
   ScoreSummary,
   Survey,
+  SurveyAnalysis,
   SurveyResponse,
   TrafficLight,
   TrendPoint,
 } from "./types";
 
 type R = Record<string, unknown>;
-type Fetcher = (path: string) => Promise<unknown>;
 const rec = (value: unknown): R => value && typeof value === "object" && !Array.isArray(value) ? value as R : {};
 const list = (value: unknown): unknown[] => Array.isArray(value) ? value : [];
 const str = (value: unknown, fallback = "") => typeof value === "string" ? value : fallback;
@@ -50,12 +50,6 @@ const BACK_TO_FRONT = Object.fromEntries(Object.entries(FRONT_TO_BACK).map(([fro
 export const toBackendId = (id: string) => FRONT_TO_BACK[id] ?? id;
 export const toFrontendId = (id: string) => BACK_TO_FRONT[id] ?? id;
 
-function mapIds(value: unknown, mapper: (id: string) => string): unknown {
-  if (typeof value === "string") return mapper(value);
-  if (Array.isArray(value)) return value.map((item) => mapIds(item, mapper));
-  if (value && typeof value === "object") return Object.fromEntries(Object.entries(value as R).map(([key, item]) => [key, mapIds(item, mapper)]));
-  return value;
-}
 export function prepareRemotePath(path: string) {
   const url = new URL(path, "http://remote.local");
   url.pathname = url.pathname.split("/").map((part) => toBackendId(part)).join("/");
@@ -65,11 +59,16 @@ export function prepareRemotePath(path: string) {
   }
   return `${url.pathname}${url.search}`;
 }
-export function prepareRemoteBody(_path: string, body: unknown, _actorId: string): unknown {
-  if (!body || typeof body !== "object") return body;
-  const mapped = rec(mapIds(body, toBackendId));
+export function prepareRemoteBody(body: unknown): unknown {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const mapped = { ...rec(body) };
+  for (const key of Object.keys(mapped)) {
+    const value = mapped[key];
+    if (key.endsWith("_id") && typeof value === "string") mapped[key] = toBackendId(value);
+    if (key.endsWith("_ids") && Array.isArray(value)) mapped[key] = value.map((id) => typeof id === "string" ? toBackendId(id) : id);
+  }
   if (Array.isArray(mapped.questions)) mapped.questions = mapped.questions.map((question) => {
-    const item = rec(question);
+    const item = { ...rec(question) };
     if (Array.isArray(item.options) && item.options.length === 0) delete item.options;
     return item;
   });
@@ -127,7 +126,7 @@ function normalizeSummary(value: unknown, fallback?: Partial<ScoreSummary>): Sco
     percentile_min: min,
     percentile_max: max,
     percentile_label: str(raw.percentile_label ?? percentile.label ?? fallback?.percentile_label, min !== null && max !== null ? `${min}–${max}` : "—"),
-    traffic_light: (["green", "yellow", "red"].includes(light) ? light : (latest ?? 0) >= 4.5 ? "green" : (latest ?? 0) >= 3.5 ? "yellow" : "red") as TrafficLight,
+    traffic_light: (["green", "yellow", "red", "gray"].includes(light) ? light : latest === null ? "gray" : latest >= 4.5 ? "green" : (latest ?? 0) >= 3.5 ? "yellow" : "red") as TrafficLight,
     department: str(raw.department ?? fallback?.department, str(raw.team, "—")),
     current_period: period(raw.current_period ?? raw.period ?? fallback?.current_period, "—"),
   };
@@ -207,10 +206,22 @@ function normalizeDashboardTrends(raw: R) {
   if (dimensions.length) return dimensions.map((item, index) => {
     const trend = rec(item);
     const dimension = str(trend.dimension);
+    const source = trend.role === "mentor" ? "наставники" : "стажёры";
+    const values = Array<number | null>(6).fill(null);
+    for (const point of list(trend.points)) {
+      const rawPoint = rec(point);
+      const wave = num(rawPoint.wave);
+      if (Number.isInteger(wave) && wave >= 1 && wave <= values.length) values[wave - 1] = nullable(rawPoint.value);
+    }
+    const min = num(trend.scale_min, 1);
+    const max = num(trend.scale_max, 5);
+    const version = num(trend.question_version, 1);
+    const scale = min === 1 && max === 5 ? "" : ` · шкала ${min}–${max}`;
     return {
-      id: str(trend.question_id ?? trend.dimension, `trend-${index}`),
-      label: dashboardDimensionLabels[dimension] ?? str(trend.label ?? trend.dimension, `Измерение ${index + 1}`),
-      values: list(trend.points).map((point) => nullable(rec(point).value)),
+      id: `${source}:${dimension}:${str(trend.scale_signature, `trend-${index}`)}`,
+      dimension,
+      label: `${dashboardDimensionLabels[dimension] ?? str(trend.label ?? trend.dimension, `Измерение ${index + 1}`)} · ${source}${scale}${version > 1 ? ` · версия ${version}` : ""}`,
+      values,
     };
   });
   const points = list(raw.trends);
@@ -228,14 +239,14 @@ function normalizeDashboard(value: unknown): DashboardData {
   const coverageRaw = rec(raw.coverage);
   const coverage = Array.isArray(raw.coverage)
     ? raw.coverage.map((item) => ({ label: str(rec(item).label), value: num(rec(item).value ?? rec(item).percent), total: num(rec(item).total, 100) }))
-    : [{ label: "Ответы стажёров и наставников", value: num(coverageRaw.percent), total: num(coverageRaw.invited) }];
+    : num(coverageRaw.invited) > 0 ? [{ label: "Ответы стажёров и наставников", value: Math.round(num(coverageRaw.percent)), total: num(coverageRaw.invited) }] : [];
   const participation = (value: unknown): ParticipationState => value === "submitted" || value === "pending" ? value : "";
   return {
     metrics: {
       interns: num(metrics.interns, items.length),
-      coverage: num(metrics.coverage ?? metrics.average_coverage ?? coverageRaw.percent),
+      coverage: Math.round(num(metrics.coverage ?? metrics.average_coverage ?? coverageRaw.percent)),
       avg_score: nullable(metrics.avg_score ?? averages.latest_score),
-      attention: num(metrics.attention ?? metrics.requires_attention, items.filter((item) => item.traffic_light !== "green").length),
+      attention: num(metrics.attention ?? metrics.requires_attention, items.filter((item) => item.traffic_light === "red" || item.traffic_light === "yellow").length),
     },
     items,
     coverage,
@@ -246,6 +257,10 @@ function normalizeDashboard(value: unknown): DashboardData {
     },
     trends: normalizeDashboardTrends(raw),
     updated_at: date(raw.updated_at),
+    attention_queue: list(raw.attention_queue).map((value) => {
+      const item = rec(value);
+      return { internship_id: toFrontendId(str(item.internship_id)), name: str(item.name), title: str(item.title), severity: str(item.severity), wave: num(item.wave), status: str(item.status) };
+    }),
     survey_participation: list(raw.survey_participation).map((item) => {
       const row = rec(item);
       return {
@@ -309,7 +324,7 @@ function normalizeMetrics(value: unknown, trends: TrendPoint[]): MetricCompariso
   return [{ id: "overall", label: "Средний балл", intern: trends.at(-1)?.intern ?? null, mentor: trends.at(-1)?.mentor ?? null }];
 }
 
-export async function normalizeRemote<T>(path: string, value: unknown, _fetcher: Fetcher): Promise<T> {
+export function normalizeRemote<T>(path: string, value: unknown): T {
   const url = new URL(path, "http://remote.local");
   const parts = url.pathname.replace(/^\/api\/v1/, "").replace(/^\/+|\/+$/g, "").split("/");
   const raw = rec(value);
@@ -318,7 +333,7 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
   if (parts[0] === "dashboard" && parts.length === 1) return normalizeDashboard(raw) as T;
   if (parts[0] === "interns" && parts.length === 1) return { ...raw, items: list(raw.items).map(normalizeIntern) } as T;
   if (parts[0] === "interns" && parts[1] === "options") return raw as T;
-  if (parts[0] === "interns" && parts[1]) {
+  if (parts[0] === "interns" && parts.length === 2 && parts[1]) {
     const internship = normalizeIntern(raw.internship);
     const trends = normalizeTrendPoints(raw.trends);
     const result: InternshipDetail = {
@@ -337,6 +352,8 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
       responses: list(raw.responses).map(normalizeResponse),
       summary: normalizeSummary(raw.summary, internship),
       coverage: normalizeCoverage(raw.coverage, internship.coverage),
+      survey_analysis: raw.survey_analysis as SurveyAnalysis | undefined,
+      candidate_id: num(raw.candidate_id) || undefined,
       ...(Array.isArray(raw.survey_signals) && { survey_signals: raw.survey_signals.map((value) => {
         const signal = rec(value);
         const dimension = dashboardDimensionLabels[str(signal.dimension)];
@@ -361,16 +378,28 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
         toFrontendId(surveyID),
         list(options).map((item) => {
           const option = rec(item);
-          return { internship_id: toFrontendId(str(option.internship_id)), intern_name: str(option.intern_name) };
+          return {
+            internship_id: toFrontendId(str(option.internship_id)), intern_name: str(option.intern_name),
+            status: str(option.status) || undefined, due_at: date(option.due_at) || undefined,
+          };
         }),
       ]));
       return { ...raw, items: list(raw.items).map(normalizeSurvey), assigned_internships: assignedInternships } as T;
     }
-    if (parts[2] === "take") return {
-      survey: normalizeSurvey(raw.survey), questions: list(raw.questions).map(normalizeQuestion),
-      answers: rec(rec(raw.draft).answers ?? raw.answers) as Answers,
-      internship_id: toFrontendId(str(rec(raw.assignment).internship_id ?? raw.internship_id ?? url.searchParams.get("internship_id"))) || undefined,
-    } as T;
+    if (parts[2] === "tally-invites" || parts[2] === "comment-advice") return raw as T;
+    if (parts[2] === "take") {
+      const survey = normalizeSurvey(raw.survey);
+      const assignment = rec(raw.assignment);
+      const draft = survey.status === "published" ? rec(raw.draft).answers : undefined;
+      return {
+        survey, questions: list(raw.questions).map(normalizeQuestion),
+        answers: rec(draft ?? rec(raw.submitted).answers ?? raw.answers) as Answers,
+        internship_id: toFrontendId(str(assignment.internship_id ?? raw.internship_id ?? url.searchParams.get("internship_id"))) || undefined,
+        assignment_due_at: date(assignment.due_at) || undefined,
+        assignment_status: str(assignment.status) || undefined,
+        has_draft: Boolean(draft),
+      } as T;
+    }
     if (raw.survey) return {
       ...raw, survey: normalizeSurvey(raw.survey), questions: list(raw.questions).map(normalizeQuestion),
       coverage: normalizeCoverage(raw.coverage), responses: list(raw.responses).map(normalizeResponse), assignments: normalizeAssignments(raw.assignments),

@@ -22,9 +22,14 @@ type Server struct {
 	logger  zerolog.Logger
 	version string
 	port    int
+	options ServerOptions
 }
 
-func NewServer(service *usecase.Service, logger zerolog.Logger, version string, port int) *Server {
+func NewServer(service *usecase.Service, logger zerolog.Logger, version string, port int, supplied ...ServerOptions) *Server {
+	options := ServerOptions{}
+	if len(supplied) > 0 {
+		options = supplied[0]
+	}
 	e := echo.New()
 	e.HideBanner = true
 	e.HidePort = true
@@ -32,16 +37,23 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	e.Server.ReadTimeout = 30 * time.Second
 	e.Server.WriteTimeout = 60 * time.Second
 	e.Server.IdleTimeout = 120 * time.Second
-	e.Use(middleware.RequestID(), middleware.Recover(), middleware.BodyLimit("2M"), middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete, http.MethodOptions}, AllowHeaders: []string{echo.HeaderContentType, "X-Actor-ID"}}))
-	server := &Server{echo: e, service: service, logger: logger, version: version, port: port}
+	e.Use(middleware.RequestID(), middleware.Recover(), middleware.BodyLimit("2M"))
+	if options.Auth == nil {
+		e.Use(middleware.CORSWithConfig(middleware.CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: []string{http.MethodGet, http.MethodPost, http.MethodPatch, http.MethodPut, http.MethodDelete, http.MethodOptions}, AllowHeaders: []string{echo.HeaderContentType, "X-Actor-ID"}}))
+	}
+	server := &Server{echo: e, service: service, logger: logger, version: version, port: port, options: options}
 	e.HTTPErrorHandler = server.errorHandler
 	e.Use(requestLogger(logger))
 	e.GET("/health", server.health)
 	api := e.Group("/api/v1")
 	api.GET("/health", server.health)
-	h := &handler{svc: service}
-	// External callbacks authenticate at the integration boundary in production; demo idempotency is always enforced.
-	api.POST("/integrations/surveys/webhook", h.importSurvey)
+	h := &handler{svc: service, options: options}
+	if options.Tally.Enabled() {
+		api.POST("/integrations/tally/webhook", h.tallyWebhook)
+	}
+	if options.Auth == nil {
+		api.POST("/integrations/surveys/webhook", h.importSurvey)
+	}
 	api.Use(server.actorMiddleware)
 	api.GET("/actors", h.actors)
 	api.GET("/bootstrap", h.bootstrap)
@@ -52,12 +64,19 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	api.POST("/interns", h.createIntern)
 	api.GET("/interns/options", h.internOptions)
 	api.GET("/interns/:id", h.internship)
+	api.GET("/interns/:id/final-recap", h.finalRecap)
+	api.PUT("/interns/:id/final-recap", h.saveFinalRecap)
+	api.GET("/interns/:id/candidate", h.candidate)
+	api.PUT("/interns/:id/candidate", h.linkCandidate)
+	api.PUT("/interns/:id/follow-up", h.surveyFollowUp)
+	api.POST("/interns/:id/analysis/retry", h.retrySurveyAnalysis)
 	api.PATCH("/internships/:id", h.patchInternship)
 	api.GET("/surveys", h.surveys)
 	api.POST("/surveys", h.createSurvey)
 	api.GET("/surveys/responses/export", h.exportSurveyResponses)
 	api.POST("/surveys/responses/import", h.importSurveyResponses)
 	api.GET("/surveys/:id", h.survey)
+	api.GET("/surveys/:id/tally-invites", h.tallyInvites)
 	api.PATCH("/surveys/:id", h.patchSurvey)
 	api.DELETE("/surveys/:id", h.deleteSurvey)
 	api.POST("/surveys/:id/publish", h.publishSurvey)
@@ -65,6 +84,11 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	api.GET("/surveys/:id/take", h.takeSurvey)
 	api.PUT("/surveys/:id/draft", h.saveDraft)
 	api.POST("/surveys/:id/submit", h.submitSurvey)
+	api.POST("/surveys/:id/comment-advice", h.mentorCommentAdvice)
+	api.GET("/survey-reminders", h.surveyReminders)
+	api.POST("/survey-reminders", h.remindSurvey)
+	api.GET("/hr-contacts", h.hrContacts)
+	api.POST("/hr-contacts", h.contactHR)
 	api.GET("/feedback", h.feedback)
 	api.POST("/feedback", h.createFeedback)
 	api.PATCH("/feedback/:id", h.patchFeedback)
@@ -93,6 +117,7 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	api.POST("/ai/analyze", h.aiAnalyze)
 	api.POST("/ai/edit", h.aiEdit)
 	api.GET("/integrations", h.integrations)
+	api.GET("/integrations/status", h.integrationStatus)
 	api.POST("/integrations/:id/sync", h.syncIntegration)
 	api.GET("/settings", h.settings)
 	api.PATCH("/settings", h.patchSettings)
@@ -103,29 +128,40 @@ func (s *Server) Start() error                       { return s.echo.Start(fmt.S
 func (s *Server) Shutdown(ctx context.Context) error { return s.echo.Shutdown(ctx) }
 func (s *Server) Echo() *echo.Echo                   { return s.echo }
 func (s *Server) health(c echo.Context) error {
+	ctx, cancel := context.WithTimeout(c.Request().Context(), 2*time.Second)
+	defer cancel()
+	if err := s.service.Ping(ctx); err != nil {
+		return c.JSON(http.StatusServiceUnavailable, map[string]string{"status": "unavailable"})
+	}
 	return c.JSON(http.StatusOK, map[string]string{"status": "ok", "version": s.version, "storage": s.service.Storage()})
 }
 
 func (s *Server) actorMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		actorID := c.Request().Header.Get("X-Actor-ID")
-		if actorID == "" {
-			actorID = c.QueryParam("actor_id")
+		c.Response().Header().Set("Cache-Control", "no-store")
+		var actorID, subject string
+		if s.options.Auth != nil {
+			var err error
+			subject, err = s.options.Auth.subject(c)
+			if err != nil {
+				return err
+			}
+			c.Set(secureActorKey, true)
+		} else {
+			actorID = c.Request().Header.Get("X-Actor-ID")
+			if actorID == "" {
+				actorID = c.QueryParam("actor_id")
+			}
+			if actorID == "" {
+				actorID = usecase.DefaultActorID
+			}
 		}
-		if actorID == "" {
-			actorID = usecase.DefaultActorID
-		}
-		actors, err := s.service.Actors(c.Request().Context())
+		verified, err := s.service.ResolveActor(c.Request().Context(), actorID, subject)
 		if err != nil {
 			return err
 		}
-		for _, actor := range actors {
-			if actor.ID == actorID {
-				c.Set(actorKey, actor)
-				return next(c)
-			}
-		}
-		return writeError(c, http.StatusUnauthorized, "unauthorized", "unknown demo actor")
+		c.Set(actorKey, verified)
+		return next(c)
 	}
 }
 func actor(c echo.Context) domain.Actor { return c.Get(actorKey).(domain.Actor) }
@@ -146,8 +182,7 @@ func (s *Server) errorHandler(err error, c echo.Context) {
 		}
 	}
 	if status >= 500 {
-		s.logger.Error().Err(err).Str("path", c.Request().URL.Path).Msg("request failed")
-		message = "internal server error"
+		s.logger.Error().Err(err).Str("path", c.Path()).Msg("request failed")
 	}
 	_ = writeError(c, status, code, message)
 }
@@ -159,6 +194,8 @@ func mapError(err error) (int, string, string) {
 		return 401, "unauthorized", "actor is not authorized"
 	case errors.Is(err, domain.ErrForbidden):
 		return 403, "forbidden", "access denied"
+	case errors.Is(err, domain.ErrUnavailable):
+		return http.StatusServiceUnavailable, "integration_unavailable", "внешняя интеграция недоступна"
 	case errors.Is(err, domain.ErrNotFound):
 		return 404, "not_found", "entity not found"
 	case errors.Is(err, domain.ErrConflict), errors.Is(err, domain.ErrAlreadyExists):

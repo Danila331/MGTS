@@ -34,8 +34,10 @@ type AssignInput struct {
 }
 
 type surveyAssignmentOption struct {
-	InternshipID string `json:"internship_id"`
-	InternName   string `json:"intern_name"`
+	InternshipID string    `json:"internship_id"`
+	InternName   string    `json:"intern_name"`
+	Status       string    `json:"status"`
+	DueAt        time.Time `json:"due_at"`
 }
 
 func (s *Service) Surveys(ctx context.Context, actorID string) (map[string]any, error) {
@@ -66,7 +68,9 @@ func (s *Service) Surveys(ctx context.Context, actorID string) (map[string]any, 
 			}
 			internship, ok := state.Internships[assignment.InternshipID]
 			if ok {
-				assignedInternships[assignment.SurveyID] = append(assignedInternships[assignment.SurveyID], surveyAssignmentOption{InternshipID: internship.ID, InternName: internship.Intern.Name})
+				assignedInternships[assignment.SurveyID] = append(assignedInternships[assignment.SurveyID], surveyAssignmentOption{
+					InternshipID: internship.ID, InternName: internship.Intern.Name, Status: assignment.Status, DueAt: assignment.DueAt,
+				})
 			}
 		}
 	}
@@ -316,7 +320,12 @@ func (s *Service) TakeSurvey(ctx context.Context, actorID, surveyID, internshipI
 			draft = &copy
 		}
 	}
-	return map[string]any{"survey": survey, "questions": survey.Questions, "assignment": assignment, "draft": draft}, nil
+	_, submittedResponse, hasSubmitted := activeResponse(state, assignment.ID)
+	var submitted *domain.Response
+	if hasSubmitted {
+		submitted = &submittedResponse
+	}
+	return map[string]any{"survey": survey, "questions": survey.Questions, "assignment": assignment, "draft": draft, "submitted": submitted}, nil
 }
 
 func (s *Service) SaveDraft(ctx context.Context, actorID, surveyID, internshipID string, answers map[string]any) (domain.Response, error) {
@@ -329,6 +338,9 @@ func (s *Service) SaveDraft(ctx context.Context, actorID, surveyID, internshipID
 		survey, assignment, err := s.takeAssignment(state, actor, surveyID, internshipID)
 		if err != nil {
 			return err
+		}
+		if survey.Status != "published" {
+			return domain.ErrConflict
 		}
 		if err := validateAnswers(survey, answers, false); err != nil {
 			return err
@@ -374,6 +386,9 @@ func (s *Service) SubmitSurvey(ctx context.Context, actorID, surveyID, internshi
 		if err != nil {
 			return err
 		}
+		if survey.Status != "published" {
+			return domain.ErrConflict
+		}
 		if err := validateAnswers(survey, answers, true); err != nil {
 			return err
 		}
@@ -414,7 +429,7 @@ func (s *Service) takeAssignment(state *domain.State, actor domain.Actor, survey
 	if !ok {
 		return domain.Survey{}, domain.Assignment{}, domain.ErrNotFound
 	}
-	if survey.Status != "published" {
+	if survey.Status != "published" && survey.Status != "closed" {
 		return survey, domain.Assignment{}, domain.ErrConflict
 	}
 	candidates := []domain.Assignment{}

@@ -150,6 +150,8 @@ func hasHelpIntent(text string) bool {
 	// Match complete words so "мне нужна помощь" is not mistaken for negation.
 	normalized = strings.ReplaceAll(normalized, " не нужна помощь ", " ")
 	normalized = strings.ReplaceAll(normalized, " помощь не нужна ", " ")
+	normalized = strings.ReplaceAll(normalized, " не нужна поддержка ", " ")
+	normalized = strings.ReplaceAll(normalized, " не прошу помощи ", " ")
 	phrases := []string{
 		"нужна помощь", "нужна поддержка", "нужна ваша помощь", "нужна твоя помощь",
 		"помогите", "прошу помощи", "прошу о помощи", "прошу помочь", "прошу связаться",
@@ -161,7 +163,9 @@ func hasHelpIntent(text string) bool {
 			return true
 		}
 	}
-	return false
+	withoutSupport := strings.Contains(normalized, " без помощи ") || strings.Contains(normalized, " без поддержки ")
+	blocked := strings.Contains(normalized, " не могу продолжить ") || strings.Contains(normalized, " не могу двигаться дальше ")
+	return withoutSupport && blocked
 }
 
 func appendEvidence(items []domain.Evidence, item domain.Evidence) []domain.Evidence {

@@ -26,7 +26,7 @@ const (
 )
 
 func requireExplicitHR(c echo.Context) error {
-	if c.Request().Header.Get("X-Actor-ID") == "" && c.QueryParam("actor_id") == "" {
+	if c.Get(secureActorKey) != true && c.Request().Header.Get("X-Actor-ID") == "" && c.QueryParam("actor_id") == "" {
 		return domain.ErrUnauthorized
 	}
 	if actor(c).Role != domain.RoleHR {

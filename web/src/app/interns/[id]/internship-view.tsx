@@ -14,6 +14,8 @@ import { get } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import type { Actor, InternshipDetail, TrendPoint } from "@/lib/types";
 import { SurveySignals } from "./survey-signals";
+import { CandidatePanel, SurveyAnalysisPanel } from "./survey-analysis";
+import { FinalRecap } from "./final-recap";
 
 type Tab = "overview" | "responses";
 const emptyTrend = (month: number): TrendPoint => ({ period: `Месяц ${month}`, label: `Месяц ${month}`, intern: null, mentor: null });
@@ -24,7 +26,7 @@ export function InternshipView({ id }: { id: string }) {
 }
 
 function InternshipCard({ actor, id }: { actor: Actor; id: string }) {
-  const { data, error, loading, reload } = useResource(() => get<InternshipDetail>(`/interns/${id}`), [id, actor.id]);
+  const { data, error, loading, reload } = useResource(() => get<InternshipDetail>(`/interns/${id}`), [id, actor.id], actor.role === "hr" ? 12000 : 0);
   const [tab, setTab] = useState<Tab>("overview");
   const trends = Array.from({ length: 6 }, (_, index) => data?.trends.find((point) => point.period === `Месяц ${index + 1}` || point.label === `Месяц ${index + 1}`) ?? data?.trends[index] ?? emptyTrend(index + 1));
   const hasTrend = trends.some((point) => point.intern !== null || point.mentor !== null);
@@ -36,7 +38,9 @@ function InternshipCard({ actor, id }: { actor: Actor; id: string }) {
       <section className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-cols-4" aria-label="Показатели стажёра">
         {[["Текущий средний", formatScore(data.summary.latest_score)], ["Общий средний", formatScore(data.summary.overall_score)], ["Средний когорты", formatScore(data.summary.cohort_average)], ["Перцентиль", data.summary.percentile_label]].map(([label, value]) => <div key={label} className="border-b border-r p-4 nth-3:border-b-0 nth-4:border-b-0 even:border-r-0 lg:border-b-0 lg:last:border-r-0"><p className="text-[11px] text-muted-foreground">{label}</p><p className="tnum mt-2 text-[24px] font-medium">{value}</p>{label === "Перцентиль" && <p className="mt-1 text-[11px] text-muted-foreground">диапазон в когорте</p>}</div>)}
       </section>
-      {actor.role === "hr" && data.survey_signals && <SurveySignals signals={data.survey_signals} responses={data.responses} refreshing={loading} refreshFailed={Boolean(error)} onRefresh={reload} />}
+      {actor.role === "hr" && data.survey_analysis && <SurveyAnalysisPanel id={id} analysis={data.survey_analysis} responses={data.responses} reload={reload} />}
+      {actor.role === "hr" && !data.survey_analysis && data.survey_signals && <SurveySignals signals={data.survey_signals} responses={data.responses} refreshing={loading} refreshFailed={Boolean(error)} onRefresh={reload} />}
+      {actor.role === "hr" && <FinalRecap internshipID={id} />}
       <Segmented value={tab} onChange={setTab} label="Разделы карточки стажёра" items={[{ value: "overview", label: "Динамика и оценки" }, { value: "responses", label: `Ответы · ${data.responses.length}` }]} />
       {tab === "overview" ? <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="space-y-4">
         <Panel title="Динамика за 6 месяцев" note="Средние оценки стажёра и наставника по соответствующим формам">
@@ -47,7 +51,7 @@ function InternshipCard({ actor, id }: { actor: Actor; id: string }) {
           <div className="mt-4 flex gap-4 border-t pt-3 text-[11px] text-muted-foreground"><span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[var(--chart-1)]" />Стажёр</span><span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[var(--chart-2)]" />Наставник</span></div>
         </Panel>
         <Panel title="Контрольные периоды"><ol className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{data.timeline.map((event) => <li key={event.id} className="rounded-lg bg-surface p-3"><div className="flex items-baseline justify-between gap-2"><h3 className="text-[12px] font-medium">{event.title}</h3><time className="text-[10px] text-muted-foreground">{formatDate(event.at)}</time></div><p className="mt-1.5 text-[11px] leading-4 text-muted-foreground">{event.text}</p></li>)}</ol></Panel>
-      </div><aside className="space-y-4"><Panel title="Покрытие"><p className="tnum text-[28px] font-medium">{data.coverage.percent}%</p><p className="mt-1 text-[12px] text-muted-foreground">{data.coverage.submitted} из {data.coverage.invited || 12} ответов за 6 месяцев</p><div className="mt-4"><ProgressBar value={data.coverage.percent} /></div></Panel><Panel title="Участники"><div className="space-y-3">{data.participants.map((person) => <div key={`${person.role}-${person.name}`} className="flex items-center gap-3"><Avatar initials={person.initials} /><div><p className="text-[13px] font-medium">{person.name}</p><p className="text-[11px] text-muted-foreground">{person.role}</p></div></div>)}</div></Panel></aside></div> : <Panel title="Числовые ответы и комментарии" note="Обе стороны · от новых периодов к предыдущим"><ResponseList responses={data.responses} /></Panel>}
+      </div><aside className="space-y-4">{actor.role === "hr" && <CandidatePanel id={id} candidateId={data.candidate_id} />}<Panel title="Покрытие"><p className="tnum text-[28px] font-medium">{data.coverage.percent}%</p><p className="mt-1 text-[12px] text-muted-foreground">{data.coverage.submitted} из {data.coverage.invited || 12} ответов за 6 месяцев</p><div className="mt-4"><ProgressBar value={data.coverage.percent} /></div></Panel><Panel title="Участники"><div className="space-y-3">{data.participants.map((person) => <div key={`${person.role}-${person.name}`} className="flex items-center gap-3"><Avatar initials={person.initials} /><div><p className="text-[13px] font-medium">{person.name}</p><p className="text-[11px] text-muted-foreground">{person.role}</p></div></div>)}</div></Panel></aside></div> : <Panel title="Числовые ответы и комментарии" note="Обе стороны · от новых периодов к предыдущим"><ResponseList responses={data.responses} /></Panel>}
     </div>}
   </Page>;
 }

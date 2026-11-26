@@ -28,7 +28,7 @@ const ShellContext = createContext<ShellState>({ desktop: true, sidebarOpen: tru
 export const useShell = () => useContext(ShellContext);
 
 function ActorMenu() {
-  const { actor, actors, setActor } = useApp();
+  const { actor, actors, setActor, demo } = useApp();
   const { theme, setTheme } = useTheme();
   const pathname = usePathname();
   const router = useRouter();
@@ -46,10 +46,11 @@ function ActorMenu() {
   return <DropdownMenu>
     <DropdownMenuTrigger render={<button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring/50" />}>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium">{actor.initials}</span>
-      <span className="min-w-0 flex-1"><span className="block truncate text-[13px] leading-tight font-medium">{actor.name}</span><span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{roleLabels[actor.role]} · демо</span></span>
+      <span className="min-w-0 flex-1"><span className="block truncate text-[13px] leading-tight font-medium">{actor.name}</span><span className="mt-0.5 block truncate text-[11px] leading-tight text-muted-foreground">{roleLabels[actor.role]}{demo && " · демо"}</span></span>
       <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
     </DropdownMenuTrigger>
     <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-[248px]">
+      {demo && <>
       <DropdownMenuGroup>
         <DropdownMenuLabel>Демо-роль</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={actor.role} onValueChange={selectRole}>
@@ -57,6 +58,7 @@ function ActorMenu() {
         </DropdownMenuRadioGroup>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
+      </>}
       <DropdownMenuGroup>
         <DropdownMenuLabel>Внешний вид</DropdownMenuLabel>
         {[{ value: "light", label: "Светлая", icon: Sun }, { value: "dark", label: "Тёмная", icon: Moon }, { value: "system", label: "Системная", icon: SunMoon }].map(({ value, label, icon: Icon }) => <DropdownMenuItem key={value} onClick={() => setTheme(value)} closeOnClick={false}><Icon />{label}{theme === value && <Check className="ml-auto" />}</DropdownMenuItem>)}

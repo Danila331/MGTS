@@ -1,14 +1,16 @@
 "use client";
 
 import { Panel } from "@/components/page";
+import { MentorCommentAdvice } from "@/components/survey-guidance";
 import type { Answers, Question, SurveyAudience } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-export function SurveyQuestions({ audience, answers, questions, readOnly = false, update }: {
+export function SurveyQuestions({ audience, answers, questions, readOnly = false, advice, update }: {
   audience: SurveyAudience;
   answers: Answers;
   questions: Question[];
   readOnly?: boolean;
+  advice?: { surveyID: string; internshipID: string; actorID?: string };
   update: (question: Question, value: string | number | string[]) => void;
 }) {
   return (
@@ -40,7 +42,7 @@ export function SurveyQuestions({ audience, answers, questions, readOnly = false
                     <span className="text-right">{audience === "intern" ? "5 · полностью согласен" : "5 · высокий результат"}</span>
                   </div>
                 </>}
-                {question.type === "text" && (
+                {question.type === "text" && <>
                   <textarea
                     aria-labelledby={label}
                     className="min-h-28 w-full rounded-lg border border-input bg-field p-3 text-[14px] outline-none focus-visible:ring-3 focus-visible:ring-ring/30 disabled:opacity-70"
@@ -48,7 +50,8 @@ export function SurveyQuestions({ audience, answers, questions, readOnly = false
                     onChange={(event) => update(question, event.target.value)}
                     placeholder="Введите развёрнутый ответ"
                   />
-                )}
+                  {audience === "mentor" && advice && !readOnly && <MentorCommentAdvice {...advice} questionID={question.id} text={String(answer ?? "")} />}
+                </>}
                 {(question.type === "single" || multiple) && (
                   <div className="space-y-2">
                     {question.options.map((option) => {

@@ -7,6 +7,7 @@ import (
 )
 
 type Config struct {
+	Pulse       Pulse
 	Port        int
 	Storage     string
 	DatabaseURL string
@@ -39,5 +40,7 @@ func Load() (Config, error) {
 	if raw := os.Getenv("LOG_LEVEL"); raw != "" {
 		cfg.LogLevel = raw
 	}
-	return cfg, nil
+	pulse, err := loadPulse(cfg.Storage)
+	cfg.Pulse = pulse
+	return cfg, err
 }

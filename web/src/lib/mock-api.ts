@@ -85,7 +85,19 @@ function dashboard(actor: Actor, state: MockState): DashboardData {
     },
     trends,
     updated_at: now(),
+    survey_participation: actor.role === "hr" ? visible.map((item) => ({
+      internship_id: item.id, name: item.intern.name,
+      periods: periods.map((period) => ({
+        intern: mockParticipation(state, item.id, period, "intern"),
+        mentor: mockParticipation(state, item.id, period, "mentor"),
+      })),
+    })) : [],
   };
+}
+
+function mockParticipation(state: MockState, internshipId: string, period: string, role: Survey["audience"]) {
+  if (state.responses.some((response) => response.internship_id === internshipId && response.period === period && response.role === role)) return "submitted";
+  return state.surveys.some((survey) => survey.period === period && survey.audience === role && survey.assignments.includes(internshipId)) ? "pending" : "";
 }
 
 function internshipDetail(id: string, actor: Actor, state: MockState): InternshipDetail {
@@ -138,11 +150,23 @@ export async function mockRequest<T>(path: string, actorId: string, init?: Reque
   const body = bodyOf(init);
   const result = (): unknown => {
     if (method === "GET" && parts[0] === "health") return { status: "fallback", version: "pulse-1", storage: "localStorage" };
-    if (method === "GET" && parts[0] === "actors") return { items: clone(actors) };
+    if (method === "GET" && parts[0] === "actors") return { items: clone(actors), demo: true };
     if (method === "GET" && parts[0] === "bootstrap") return { actor, actors };
     if (method === "GET" && parts[0] === "dashboard") {
+      if (parts[1] === "mentors") {
+        requireRole(actor, ["hr"]);
+        return { mentors: [] };
+      }
       requireRole(actor, ["hr", "manager", "mentor"]);
       return dashboard(actor, state);
+    }
+    if (method === "GET" && parts[0] === "integrations" && parts[1] === "status") {
+      requireRole(actor, ["hr"]);
+      return { tally: false, huntflow: false };
+    }
+    if (method === "GET" && parts[0] === "interns" && parts[2] === "candidate") {
+      requireRole(actor, ["hr"]);
+      return { enabled: false, profile: null };
     }
     if (method === "GET" && parts[0] === "interns" && parts.length === 1) {
       requireRole(actor, ["hr", "manager", "mentor"]);
@@ -163,16 +187,31 @@ export async function mockRequest<T>(path: string, actorId: string, init?: Reque
     if (parts[0] === "surveys") {
       if (method === "GET" && parts.length === 1) {
         const items = state.surveys.filter((survey) => surveyForRole(actor, survey));
-        return { items: clone(items), total: items.length };
+        const subjects = actor.role === "intern" || actor.role === "mentor" ? scopedInterns(actor) : [];
+        const assignments = Object.fromEntries(items.map((survey) => [survey.id, subjects
+          .filter((item) => survey.assignments.includes(item.id))
+          .map((item) => ({
+            internship_id: item.id, intern_name: item.intern.name, due_at: survey.due_at,
+            status: mockParticipation(state, item.id, survey.period, survey.audience) === "submitted" ? "submitted" : "assigned",
+          }))]));
+        return { items, total: items.length, assigned_internships: assignments };
       }
       const survey = state.surveys.find((item) => item.id === parts[1]);
       if (!survey || !surveyForRole(actor, survey)) fail(404, "Анкета не найдена или недоступна");
+      if (method === "GET" && parts[2] === "tally-invites") {
+        requireRole(actor, ["hr"]);
+        return { enabled: false, items: [] };
+      }
       if (method === "GET" && parts[2] === "take") {
         const internshipId = url.searchParams.get("internship_id") ?? actor.internship_id ?? (actor.role === "mentor" ? "i-1" : "i-1");
         if ((actor.role === "intern" || actor.role === "mentor") && !allowedIntern(actor, internshipId)) fail(403, "Эта анкета не назначена выбранному стажёру");
         const key = `${actor.id}:${survey.id}:${internshipId}`;
         const submitted = state.responses.find((response) => response.survey_id === survey.id && response.internship_id === internshipId && response.role === survey.audience);
-        return { survey: clone(survey), questions: clone(survey.questions), answers: clone(state.drafts[key] ?? submitted?.answers ?? {}), internship_id: internshipId };
+        const draft = survey.status === "published" ? state.drafts[key] : undefined;
+        return {
+          survey, questions: survey.questions, answers: draft ?? submitted?.answers ?? {}, internship_id: internshipId,
+          assignment_due_at: survey.due_at, assignment_status: submitted ? "submitted" : "assigned", has_draft: Boolean(draft),
+        };
       }
       if (method === "PUT" && parts[2] === "draft") {
         requireRole(actor, [survey.audience]);

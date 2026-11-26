@@ -1,6 +1,6 @@
 export type Role = "hr" | "manager" | "mentor" | "intern";
 export type ID = string;
-export type TrafficLight = "green" | "yellow" | "red";
+export type TrafficLight = "green" | "yellow" | "red" | "gray";
 export type SurveyAudience = "intern" | "mentor";
 
 export interface Actor {
@@ -90,9 +90,10 @@ export interface DashboardData {
   items: InternItem[];
   coverage: { label: string; value: number; total: number }[];
   averages: { latest_score: number | null; overall_score: number | null; cohort_average: number | null };
-  trends: { id?: string; label: string; values: (number | null)[] }[];
+  trends: { id?: string; dimension?: string; label: string; values: (number | null)[] }[];
   updated_at: string;
   survey_participation?: SurveyParticipation[];
+  attention_queue?: { internship_id: string; name: string; title: string; severity: string; wave: number; status: string }[];
 }
 
 export type ParticipationState = "" | "pending" | "submitted";
@@ -127,6 +128,24 @@ export interface InternshipDetail {
   summary: ScoreSummary;
   coverage: Coverage;
   survey_signals?: SurveySignal[];
+  survey_analysis?: SurveyAnalysis;
+  candidate_id?: number;
+}
+
+export interface SurveyEvidence {
+  response_id: string;
+  role: SurveyAudience;
+  wave: number;
+  text: string;
+}
+
+export interface SurveyAnalysis {
+  findings: { kind: string; severity: "critical" | "high"; title: string; wave: number; evidence: SurveyEvidence[] }[];
+  status: "disabled" | "no_data" | "pending" | "retrying" | "ready" | "failed";
+  model?: string;
+  review_version?: string;
+  ai?: { summary: string; next_step: string; evidence: SurveyEvidence[] };
+  follow_up?: { status: "in_progress" | "done"; note: string; updated_by: string; updated_at: string };
 }
 
 export interface SurveySignal {
@@ -151,11 +170,16 @@ export interface SurveyTake {
   questions: Question[];
   answers: Answers;
   internship_id?: ID;
+  assignment_due_at?: string;
+  assignment_status?: string;
+  has_draft?: boolean;
 }
 
 export interface SurveyAssignmentOption {
   internship_id: ID;
   intern_name: string;
+  status?: string;
+  due_at?: string;
 }
 
 export interface AssignedSurveyList {

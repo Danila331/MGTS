@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { useApp } from "@/components/app-provider";
 import { Field, fieldClass, FormDialog } from "@/components/forms";
 import { LoadingState } from "@/components/page";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,8 @@ export function AddIntern({ actorID, onAdded }: { actorID: string; onAdded: (id:
 
 function AddInternDialog({ actorID, onClose, onAdded }: { actorID: string; onClose: () => void; onAdded: (id: string) => void }) {
   const { data, error, reload } = useResource(() => getAs<InternOptions>(actorID, "/interns/options"), []);
+  const { demo } = useApp();
+  const [subject, setSubject] = useState("");
   const [name, setName] = useState("");
   const [team, setTeam] = useState("");
   const [mentor, setMentor] = useState("");
@@ -39,7 +42,7 @@ function AddInternDialog({ actorID, onClose, onAdded }: { actorID: string; onClo
     setBusy(true);
     setSaveError("");
     try {
-      const result = await postAs<{ id: string }>(actorID, "/interns", { name, team_id: team, mentor_id: mentor });
+      const result = await postAs<{ id: string }>(actorID, "/interns", { name, team_id: team, mentor_id: mentor, identity_subject: subject });
       toast.success("Стажёр добавлен");
       onClose();
       onAdded(result.id);
@@ -53,6 +56,7 @@ function AddInternDialog({ actorID, onClose, onAdded }: { actorID: string; onClo
   return <FormDialog open onOpenChange={(opened) => { if (!opened && !busy) onClose(); }} title="Добавить стажёра" description="Укажите данные участника и назначьте наставника." onSubmit={submit} submitLabel="Добавить" busy={busy}>
     {!data ? error ? <div className="space-y-2" role="alert"><p className="text-sm text-destructive">Не удалось загрузить список блоков и наставников.</p><Button type="button" variant="outline" size="sm" onClick={reload}>Повторить</Button></div> : <LoadingState rows={2} /> : <>
       <Field label="Имя и фамилия"><input className={fieldClass} value={name} onChange={(event) => setName(event.target.value)} required maxLength={100} disabled={busy} /></Field>
+      {!demo && <Field label="SSO subject"><input className={fieldClass} value={subject} onChange={(event) => setSubject(event.target.value)} maxLength={255} disabled={busy} /></Field>}
       <Field label="Блок"><select className={fieldClass} value={team} onChange={(event) => setTeam(event.target.value)} required disabled={busy}>
         <option value="">Выберите блок</option>{data.teams.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
       </select></Field>

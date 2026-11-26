@@ -1,10 +1,10 @@
 .PHONY: backend frontend migrate test test-backend test-frontend smoke rbac-smoke build-frontend visual-check
 
 backend:
-	cd backend && STORAGE=memory PORT=8080 go run ./cmd/api
+	cd backend && go run ./cmd/api
 
 worker:
-	cd backend && STORAGE=memory go run ./cmd/worker
+	cd backend && go run ./cmd/worker
 
 migrate:
 	cd backend && go run ./cmd/migrate
