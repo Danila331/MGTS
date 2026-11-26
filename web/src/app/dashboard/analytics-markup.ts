@@ -97,7 +97,10 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .evidence summary { padding: 9px 0; cursor: pointer; font-size: .86rem; font-weight: 600; }
 .evidence blockquote { border-left: 2px solid var(--border); padding-left: 10px; font-size: .88rem; margin: 0 0 10px; }
 .evidence small { display: block; color: var(--muted-foreground); margin-top: 5px; }
-.case-history svg { width: 100%; margin-top: 8px; }
+.history-charts { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,228px),1fr)); gap:10px; margin-top:12px; }
+.history-chart { min-width:0; margin:0; padding:10px 8px 6px; border:1px solid var(--border); border-radius:8px; background:var(--card); }
+.history-chart figcaption { padding-inline:3px; font-size:.79rem; font-weight:600; }
+.history-chart svg { display:block; width:100%; max-width:320px; height:auto; margin:4px auto 0; }
 
 .metric-chart, .insight-panel { min-width:0; background:var(--card); border:1px solid var(--border); border-radius:12px; padding:16px; }
 .metric-chart .chart-head p, .insight-sub { color:var(--muted-foreground); font-size:13px; margin-top:5px; }
@@ -125,7 +128,6 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .insight-person { min-height:34px; text-align:left; overflow-wrap:anywhere; background:var(--surface); color:var(--ink); border:0; border-radius:6px; padding:8px 10px; font-size:.83rem; }
 .insight-person:hover { background:var(--accent); }
 .insight-empty { color:var(--muted-foreground); font-size:.83rem; }
-.case-select { width:100%; margin-top:9px; border:1px solid var(--border); border-radius:6px; padding:8px; font:inherit; color:var(--ink); background:var(--card); }
 @container (max-width: 790px) { .metric-chart, .insight-panel { padding:14px; } }
 
 .additional-charts { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; }
@@ -238,7 +240,6 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
   .drawer-head, .drawer-content { padding-inline: 15px; }
   .primary-figure svg text { font-size: 20px; }
   .primary-figure svg .count-label { font-size: 17px; }
-  .case-history svg text { font-size: 14px; }
 }
 
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
@@ -259,7 +260,6 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .ranking-table th button, .ranking-table td button { min-height: 26px; }
 .rank-key, .rank-badge { font-variant-numeric: tabular-nums; }
 .ranking-scroll:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-.dialog-field-label { display: block; color: var(--muted-foreground); margin-top: 8px; }
 </style>
 <div class="page">
   <div class="page-head">

@@ -1,17 +1,47 @@
 "use client";
 
-import { ArrowRight, ChevronRight, ClipboardCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowRight, ChevronRight, ClipboardCheck, Copy, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
+import { toast } from "sonner";
 import { useApp } from "@/components/app-provider";
 import { ProgressBar } from "@/components/charts";
 import { Badge, EmptyState, ErrorState, LoadingState, Page, Panel } from "@/components/page";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { useResource } from "@/hooks/use-resource";
 import { get } from "@/lib/api";
 import { formatDate, statusLabels } from "@/lib/format";
 import { periods } from "@/lib/mock-data";
 import type { Survey, SurveyAudience } from "@/lib/types";
 import { SurveyFiles } from "./survey-files";
+
+const formCards = {
+  intern: { title: "Пульс-опрос стажёра", recipient: "стажёра", description: "7 шкал 1–5, «Сложности за период» и «Что мешает работать и развиваться».", icon: UserRound, tone: "bg-info-soft text-info" },
+  mentor: { title: "Анкета наставника", recipient: "наставника", description: "6 шкал 1–5, «Комментарий о работе за период» и «Сложности / ситуации для внимания».", icon: UsersRound, tone: "bg-success-soft text-success" },
+} satisfies Record<SurveyAudience, { title: string; recipient: string; description: string; icon: typeof UserRound; tone: string }>;
+
+function SurveyFormCard({ audience, canCopy }: { audience: SurveyAudience; canCopy: boolean }) {
+  const { title, recipient, description, icon: Icon, tone } = formCards[audience];
+  const href = `/forms/${audience}`;
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(new URL(href, window.location.origin).href);
+      toast.success("Ссылка скопирована");
+    } catch {
+      toast.error("Не удалось скопировать ссылку. Откройте форму и скопируйте адрес из браузера.");
+    }
+  };
+
+  return <Panel><div className="flex gap-3">
+    <span className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${tone}`}><Icon className="size-4" aria-hidden /></span>
+    <div>
+      <h3 className="text-[14px] font-semibold">{title}</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">{description}</p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Link href={href} className={buttonVariants({ variant: "outline", size: "sm" })}>Открыть форму {recipient}<ArrowRight aria-hidden /></Link>
+        {canCopy && <Button variant="ghost" size="sm" onClick={copyLink} aria-label={`Скопировать ссылку на форму ${recipient}`}><Copy aria-hidden />Скопировать ссылку</Button>}
+      </div>
+    </div>
+  </div></Panel>;
+}
 
 function SurveyLink({ survey, actorRole }: { survey?: Survey; actorRole: string }) {
   if (!survey) return <div className="rounded-lg bg-surface p-3 text-[12px] text-muted-foreground">Форма не назначена</div>;
@@ -34,8 +64,7 @@ export function SurveysView() {
     <div className="space-y-4"><div><h2 className="text-[22px] font-semibold tracking-[-0.025em]">Библиотека Пульса</h2><p className="mt-1 text-[13px] text-muted-foreground">Фиксированные формы стажёра и наставника, без произвольного конструктора.</p></div>
       {actor.role === "hr" && <SurveyFiles key={actor.id} onImport={reload} />}
       <section className={`grid gap-3 ${audiences.length === 2 ? "md:grid-cols-2" : ""}`} aria-label="Типы форм">
-        {audiences.includes("intern") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info"><UserRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Пульс-опрос стажёра</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">7 шкал 1–5, «Сложности за период» и «Что мешает работать и развиваться».</p><Link href="/forms/intern" className={buttonVariants({ variant: "outline", size: "sm", className: "mt-3" })}>Открыть форму стажёра <ArrowRight aria-hidden /></Link></div></div></Panel>}
-        {audiences.includes("mentor") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success"><UsersRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Анкета наставника</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">6 шкал 1–5, «Комментарий о работе за период» и «Сложности / ситуации для внимания».</p><Link href="/forms/mentor" className={buttonVariants({ variant: "outline", size: "sm", className: "mt-3" })}>Открыть форму наставника <ArrowRight aria-hidden /></Link></div></div></Panel>}
+        {audiences.map((audience) => <SurveyFormCard key={audience} audience={audience} canCopy={actor.role === "hr"} />)}
       </section>
       {loading && !data ? <LoadingState rows={6} /> : error && !data ? <ErrorState error={error} retry={reload} /> : !data?.items.length ? <EmptyState title="Анкеты пока не назначены" text="Доступные контрольные периоды появятся здесь автоматически." /> :
         <Panel title="Контрольные периоды" note="Структура, ответы и покрытие по каждому месяцу">

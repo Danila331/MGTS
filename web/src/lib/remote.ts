@@ -331,7 +331,16 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
   }
   if (parts[0] === "internships" && parts[1]) return normalizeIntern(raw) as T;
   if (parts[0] === "surveys") {
-    if (parts.length === 1 && raw.items) return { ...raw, items: list(raw.items).map(normalizeSurvey) } as T;
+    if (parts.length === 1 && raw.items) {
+      const assignedInternships = Object.fromEntries(Object.entries(rec(raw.assigned_internships)).map(([surveyID, options]) => [
+        toFrontendId(surveyID),
+        list(options).map((item) => {
+          const option = rec(item);
+          return { internship_id: toFrontendId(str(option.internship_id)), intern_name: str(option.intern_name) };
+        }),
+      ]));
+      return { ...raw, items: list(raw.items).map(normalizeSurvey), assigned_internships: assignedInternships } as T;
+    }
     if (parts[2] === "take") return {
       survey: normalizeSurvey(raw.survey), questions: list(raw.questions).map(normalizeQuestion),
       answers: rec(rec(raw.draft).answers ?? raw.answers) as Answers,

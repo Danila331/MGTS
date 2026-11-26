@@ -1,4 +1,7 @@
 // Port of the interactive dashboard from aidashboard (206f65f).
+import demoHaiku from "./demo-haiku.json";
+import { demoScenarios, scenarioForDemoRound } from "./demo-scenarios.mjs";
+
 export function mountAnalytics(root) {
   const metrics = [
     'Понимание задач', 'Качество работы', 'Самостоятельность',
@@ -130,10 +133,9 @@ export function mountAnalytics(root) {
       clamp(2 + ((index * 3 + metric * 5 + Math.floor(index / 7)) % 4) +
         (month >= 3 && (index + metric) % 4 === 0 ? 1 : 0))
     ));
-    return {id, name: id, mentor, intern, texts: Array.from({length: 6}, () => ({
-      mentor: ['Демонстрационный профиль без текстового ответа.'],
-      intern: ['Демонстрационный профиль без текстового ответа.']
-    })), ai: Array(6).fill(null), department: demoDepartments[index % demoDepartments.length],
+    const scenarios = intern.map((_, period) => scenarioForDemoRound(intern, index, period));
+    return {id, name: id, mentor, intern, texts: scenarios.map(key => demoScenarios[key]),
+      ai: scenarios.map(key => demoHaiku.analyses[key]), department: demoDepartments[index % demoDepartments.length],
       startMonth: index % 5};
   });
   let dataset = 'organizers';
@@ -152,7 +154,6 @@ export function mountAnalytics(root) {
   const metricButtons = Array.from(root.querySelectorAll('[data-metric]'));
   let selectedMetric = 'all';
   const collapsedInsights = new Set();
-  let selectedHistoryMetric = 2;
   const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
   function median(values) {
     const sorted = values.slice().sort((a, b) => a - b);
@@ -164,7 +165,6 @@ export function mountAnalytics(root) {
 
   let view;
   let returnFocus;
-  let openedPersonId;
 
   function buildView() {
     const period = selectedMonth;
@@ -248,7 +248,7 @@ export function mountAnalytics(root) {
     });
     const signals = textSignals.length
       ? `<div class="insight-list" role="region" aria-labelledby="insight-haiku-title" tabindex="0">${textSignals.join('')}</div>`
-      : `<p class="insight-empty">${dataset === 'demo' ? 'ИИ-разбор синтетической выборки не проводился.' : 'В сохранённых разборах трудности не выделены.'}</p>`;
+      : '<p class="insight-empty">В сохранённых разборах трудности не выделены.</p>';
     get('insights').innerHTML = `<section class="insight-section"><h4>Низкие оценки стажёров</h4>${numeric}${noLowScores}</section>` +
       `<section class="insight-section"><h4 id="insight-haiku-title">Темы в ответах · Haiku</h4>${signals}</section>`;
   }
@@ -302,22 +302,28 @@ export function mountAnalytics(root) {
   }
 
   function caseHistory(record, period) {
-    const history = record.mentor.slice(0, period + 1).map(values => values[selectedHistoryMetric]);
-    const x = (index) => 85 + index * 63;
-    const y = (value) => 15 + (5 - value) * 21;
-    const line = history.map((value, index) => (index ? 'L' : 'M') + x(index) + ' ' + y(value)).join(' ');
-    const labels = history.map((value, index) => '<circle cx="' + x(index) + '" cy="' + y(value) + '" r="' +
-      (index === period ? 5 : 3.5) + '" fill="' + (index === period ? 'var(--tone-danger)' : 'var(--analytics-clarity)') + '"/>' +
-      '<text x="' + x(index) + '" y="' + (y(value) - 8) + '" text-anchor="middle">' + score(value) + '</text>' +
-      '<text x="' + x(index) + '" y="118" text-anchor="middle">' + (index + 1) + '</text>').join('');
-    return '<section class="drawer-block case-history"><h4>Динамика оценки наставника</h4>' +
-      '<label class="dialog-field-label">Критерий<select class="case-select" id="history-metric">' + metrics.map((metric, index) =>
-      '<option value="' + index + '"' + (index === selectedHistoryMetric ? ' selected' : '') + '>' + metric + '</option>').join('') + '</select></label>' +
-      '<svg viewBox="0 0 440 127" role="img" aria-label="' + history.map((value, index) => 'Месяц ' + (index + 1) + ', ' + score(value)).join('; ') +
-      '"><path d="M85 99H400 M85 57H400 M85 15H400" fill="none" stroke="var(--border)"/>' +
-      '<g fill="var(--muted-foreground)" font-size="12"><text x="68" y="103" text-anchor="end">1</text><text x="68" y="61" text-anchor="end">3</text>' +
-      '<text x="68" y="19" text-anchor="end">5</text><text x="68" y="118" text-anchor="end">Месяц</text></g>' +
-      '<path d="' + line + '" fill="none" stroke="var(--analytics-clarity)" stroke-width="2"/><g fill="var(--muted-foreground)" font-size="12">' + labels + '</g></svg></section>';
+    const rounds = record.mentor.slice(0, period + 1);
+    const x = index => 32 + index * 38;
+    const y = value => 21 + (5 - value) * 19;
+    const axis = [5, 3, 1].map(value => `<line x1="29" x2="226" y1="${y(value)}" y2="${y(value)}" stroke="var(--border)"/>` +
+      `<text x="18" y="${y(value) + 4}" text-anchor="end">${value}</text>`).join('');
+    const charts = metrics.map((metric, criterion) => {
+      const history = rounds.map(values => values[criterion]);
+      const line = history.map((value, index) => `${x(index)},${y(value)}`).join(' ');
+      const last = history.length - 1;
+      const labels = history.map((value, index) => `<circle cx="${x(index)}" cy="${y(value)}" r="${index === last ? 4 : 3}" ` +
+        `fill="${index === last ? 'var(--card)' : 'var(--analytics-clarity)'}" stroke="var(--analytics-clarity)" stroke-width="2"/>` +
+        `<text x="${x(index)}" y="${y(value) - 8}" text-anchor="middle">${score(value)}</text>` +
+        `<text x="${x(index)}" y="115" text-anchor="middle">${index + 1}</text>`).join('');
+      const description = [metric, ...history.map((value, index) => `Месяц ${index + 1}: ${score(value)} из 5`)].join('. ');
+      return `<figure class="history-chart"><figcaption>${escapeText(metric)}</figcaption>` +
+        `<svg viewBox="0 0 240 120" role="img" aria-label="${escapeText(description)}">` +
+        `<g fill="var(--muted-foreground)" font-size="11">${axis}</g>` +
+        `<polyline points="${line}" fill="none" stroke="var(--analytics-clarity)" stroke-width="2" stroke-linejoin="round"/>` +
+        `<g fill="var(--muted-foreground)" font-size="11">${labels}</g></svg></figure>`;
+    }).join('');
+    return `<section class="drawer-block case-history"><h4>Динамика оценки наставника</h4>` +
+      `<p class="metric-key">Оценки по месяцам · шкала 1–5</p><div class="history-charts">${charts}</div></section>`;
   }
 
   function escapeText(value) {
@@ -438,8 +444,7 @@ export function mountAnalytics(root) {
             '<button type="button" data-person="' + person.id + '">' + person.id +
             (groups.negative.includes(person) && groups.positive.includes(person) ? ' · обе оценки' : groups.negative.includes(person) ? ' · трудность' : ' · положительное') + '</button>').join('') + '</div>' : '') + '</div>';
       }).join('') + '</div>'
-      : '<p class="insight-empty">' + (dataset === 'demo' ? 'В синтетической выборке нет ИИ-разбора комментариев.' :
-        'В сохранённых разборах за этот период нет выделенных тем.') + '</p>';
+      : '<p class="insight-empty">В сохранённых разборах за этот период нет выделенных тем.</p>';
 
     const byDepartment = new Map();
     for (const record of records) {
@@ -481,7 +486,7 @@ export function mountAnalytics(root) {
     get('queue-list').innerHTML = Object.entries(groups).filter(([, items]) => items.length).map(([kind, items]) =>
       '<section class="queue-group" data-kind="' + kind + '"><h4>' + labels[kind] + '</h4>' +
       '<div class="queue-list">' + items.join('') + '</div></section>'
-    ).join('') || '<p class="empty">' + (dataset === 'demo' ? 'Для синтетической выборки ИИ-разбор не проводился.' : 'В сохранённых разборах за этот месяц нет тем для просмотра.') + '</p>';
+    ).join('') || '<p class="empty">В сохранённых разборах за этот месяц нет тем для просмотра.</p>';
   }
 
 
@@ -548,7 +553,7 @@ export function mountAnalytics(root) {
       ? '50 вымышленных стажёров · данные для демонстрации'
       : 'Историческая выборка организаторов · 5 стажёров';
     get('dataset-note').textContent = dataset === 'demo'
-      ? 'Все профили, оценки и даты в этой выборке синтетические. ИИ-разбор отсутствует.'
+      ? 'Профили, оценки, даты и комментарии вымышленные. Разбор комментариев выполнен Claude Haiku 4.5 через OpenRouter.'
       : 'Оценки и ответы взяты из материалов организаторов. Даты начала и отправки анкет демонстрационные.';
     root.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === mode)));
     const labels = mode === 'calendar' ? calendarMonths : ['Месяц 1','Месяц 2','Месяц 3','Месяц 4','Месяц 5','Месяц 6'];
@@ -574,7 +579,6 @@ export function mountAnalytics(root) {
     if (!record) return;
     const period = record.personalPeriod;
     returnFocus = trigger;
-    openedPersonId = record.id;
     get('case-meta').textContent = record.id + ' / Месяц ' + (period + 1) + (mode === 'calendar' ? ' / начало ' + calendarMonths[startMonth(record)].toLowerCase() + ' 2026 / ответ ' + calendarMonths[selectedMonth].toLowerCase() + ' 2026' : '');
     get('case-title').textContent = record.name;
 
@@ -598,7 +602,8 @@ export function mountAnalytics(root) {
       ? '<p class="ai-action"><strong>Вопрос для разговора</strong><br>' + escapeText(question) + '</p>'
       : '';
     const aiPanel = signal.kind !== 'none' && signal.kind !== 'unavailable'
-      ? '<section class="drawer-block ai"><div class="ai-head"><h4>Разбор Haiku</h4><span class="meta">Сохранённый ответ модели</span></div>' +
+      ? '<section class="drawer-block ai"><div class="ai-head"><h4>Разбор Haiku</h4><span class="meta">' +
+        (dataset === 'demo' ? 'Haiku 4.5 · OpenRouter' : 'Сохранённый ответ модели') + '</span></div>' +
         '<p class="ai-lead">' + escapeText(signal.topic.charAt(0).toUpperCase() + signal.topic.slice(1)) + '</p><div class="ai-quotes">' +
         signal.roles.map(({role, status, quotes}) =>
           '<div><p class="ai-body"><strong>' + roleNames[role] + '</strong><br>' + statusLabels[status] + '</p>' +
@@ -606,7 +611,7 @@ export function mountAnalytics(root) {
         ).join('') + '</div>' +
         (reviewedLabels[record.id + ':' + period] ? '<p class="meta">Метка уточнена по анкете стажёра.</p>' : '') +
         preparation + '</section>'
-      : '<section class="drawer-block"><h4>Разбор Haiku</h4><p class="meta">' + (signal.kind === 'unavailable' ? 'Для синтетических анкет ИИ-разбор не проводился.' : 'По текущим ответам активной темы нет.') + '</p></section>';
+      : '<section class="drawer-block"><h4>Разбор Haiku</h4><p class="meta">' + (signal.kind === 'unavailable' ? 'Разбор ответов пока недоступен.' : 'По текущим ответам активной темы нет.') + '</p></section>';
     const followup = signal.kind !== 'none' && signal.kind !== 'unavailable'
       ? '<section class="drawer-block followup"><h4>' + (review ? 'Обсуждено' : 'Действия HR') + '</h4>' +
         (previous ? '<p class="review-note"><strong>Тему уже обсуждали в месяце ' + (previous.month + 1) +
@@ -666,21 +671,13 @@ export function mountAnalytics(root) {
     get('save-status').focus();
   });
 
-  drawer.addEventListener('change', event => {
-    if (event.target.id === 'history-metric') {
-      selectedHistoryMetric = Number(event.target.value);
-      renderCase(openedPersonId, returnFocus);
-      get('history-metric').focus();
-    }
-  });
-
   drawer.addEventListener('input', event => {
     if (event.target.name === 'nextStep') event.target.setCustomValidity('');
   });
 
   root.querySelector('.page').addEventListener('click', (event) => {
     const point = event.target.closest('[data-person]');
-    if (point) { selectedHistoryMetric = 2; renderCase(point.dataset.person, point); }
+    if (point) renderCase(point.dataset.person, point);
     const moreComparisons = event.target.closest('[data-show-comparisons]');
     if (moreComparisons) {
       showAllComparisons = !showAllComparisons;

@@ -7,5 +7,5 @@ export const metadata: Metadata = { title: "Форма обратной связ
 export default async function FormPage({ params }: { params: Promise<{ audience: string }> }) {
   const { audience } = await params;
   if (audience !== "intern" && audience !== "mentor") notFound();
-  return <SurveyFormView audience={audience} />;
+  return <SurveyFormView key={audience} audience={audience} />;
 }

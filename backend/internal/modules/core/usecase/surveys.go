@@ -33,6 +33,11 @@ type AssignInput struct {
 	DueAt         time.Time
 }
 
+type surveyAssignmentOption struct {
+	InternshipID string `json:"internship_id"`
+	InternName   string `json:"intern_name"`
+}
+
 func (s *Service) Surveys(ctx context.Context, actorID string) (map[string]any, error) {
 	state, err := s.store.Snapshot(ctx)
 	if err != nil {
@@ -52,7 +57,20 @@ func (s *Service) Surveys(ctx context.Context, actorID string) (map[string]any, 
 		items = append(items, survey)
 	}
 	sort.Slice(items, func(i, j int) bool { return items[i].UpdatedAt.After(items[j].UpdatedAt) })
-	return map[string]any{"items": items, "total": len(items)}, nil
+	assignedInternships := map[string][]surveyAssignmentOption{}
+	if actor.Role == domain.RoleIntern || actor.Role == domain.RoleMentor {
+		for _, id := range domain.SortedKeys(state.Assignments) {
+			assignment := state.Assignments[id]
+			if assignment.RespondentID != actor.ID || state.Surveys[assignment.SurveyID].Audience != actor.Role {
+				continue
+			}
+			internship, ok := state.Internships[assignment.InternshipID]
+			if ok {
+				assignedInternships[assignment.SurveyID] = append(assignedInternships[assignment.SurveyID], surveyAssignmentOption{InternshipID: internship.ID, InternName: internship.Intern.Name})
+			}
+		}
+	}
+	return map[string]any{"items": items, "total": len(items), "assigned_internships": assignedInternships}, nil
 }
 
 func (s *Service) Survey(ctx context.Context, actorID, id string) (map[string]any, error) {

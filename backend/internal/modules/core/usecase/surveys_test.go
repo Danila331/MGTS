@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"reflect"
 	"testing"
@@ -9,6 +10,31 @@ import (
 	"mgts/backend/internal/modules/core/domain"
 	"mgts/backend/internal/storage/memory"
 )
+
+func TestSurveyListReturnsOnlyRespondentsAssignedSubjects(t *testing.T) {
+	ctx := context.Background()
+	state := memory.Seed()
+	service := New(memory.New(state))
+	want := []surveyAssignmentOption{{InternshipID: "internship-02", InternName: state.Internships["internship-02"].Intern.Name}}
+	for _, tc := range []struct{ actorID, ownSurvey, otherSurvey string }{
+		{"СТ-002", "survey-intern-6", "survey-mentor-6"},
+		{"Н-002", "survey-mentor-6", "survey-intern-6"},
+	} {
+		t.Run(tc.actorID, func(t *testing.T) {
+			list, err := service.Surveys(ctx, tc.actorID)
+			if err != nil {
+				t.Fatal(err)
+			}
+			options := list["assigned_internships"].(map[string][]surveyAssignmentOption)
+			if !reflect.DeepEqual(options[tc.ownSurvey], want) || len(options[tc.otherSurvey]) != 0 {
+				t.Fatalf("wrong scoped assignment options: %v", options)
+			}
+		})
+	}
+	if _, err := service.SubmitSurvey(ctx, "Н-002", "survey-mentor-6", "internship-01", nil); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("submission to another mentor's internship: got %v, want forbidden", err)
+	}
+}
 
 func TestCorrectionDraftKeepsSubmittedAnswerAndCoverage(t *testing.T) {
 	const (

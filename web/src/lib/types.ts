@@ -134,6 +134,16 @@ export interface SurveyTake {
   internship_id?: ID;
 }
 
+export interface SurveyAssignmentOption {
+  internship_id: ID;
+  intern_name: string;
+}
+
+export interface AssignedSurveyList {
+  items: Survey[];
+  assigned_internships: Record<ID, SurveyAssignmentOption[]>;
+}
+
 export interface MockState {
   surveys: Survey[];
   responses: SurveyResponse[];
