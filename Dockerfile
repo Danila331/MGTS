@@ -18,4 +18,4 @@ COPY --from=build /out/api /out/worker /out/migrate /usr/local/bin/
 USER 10001
 ENV PORT=8080 STORAGE=postgres
 EXPOSE 8080
-CMD ["api"]
+CMD ["sh", "-c", "if [ \"$STORAGE\" = postgres ]; then migrate || exit 1; fi; exec api"]

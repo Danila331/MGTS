@@ -14,6 +14,12 @@ import type { DashboardData } from "@/lib/types";
 
 export function DashboardView() {
   const { actor } = useApp();
+  if (actor.role === "intern") return <Page title="Пульс" roles={["hr", "manager", "mentor"]}>{null}</Page>;
+  return <DashboardDataView key={actor.id} />;
+}
+
+function DashboardDataView() {
+  const { actor } = useApp();
   const { data, error, loading, reload } = useResource(() => get<DashboardData>("/dashboard"), [actor.id]);
   const [search, setSearch] = useState("");
   const [department, setDepartment] = useState("");

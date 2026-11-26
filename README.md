@@ -80,4 +80,6 @@ SMOKE_URL=http://127.0.0.1:7100 npm run test:a11y
 
 ## Деплой
 
-Корневой `Dockerfile` собирает Go API, worker и migrate в non-root Alpine-образ. `vercel.json` запускает production-сборку Next.js из `web/`.
+Корневой `Dockerfile` собирает Go API, worker и migrate в non-root Alpine-образ. На Railway сервису API нужна переменная `DATABASE_URL` с адресом PostgreSQL. Контейнер применяет миграции перед запуском API.
+
+Корневая директория проекта в Vercel — `web`, конфигурация находится в `web/vercel.json`. `API_URL` указывает на HTTPS-адрес API в Railway.
