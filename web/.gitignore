@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.verification/
+.remote-inspect/
+.env
+.env.local
+.env.*.local
+.DS_Store
