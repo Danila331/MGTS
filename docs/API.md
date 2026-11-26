@@ -30,6 +30,11 @@ Internship list item includes `{id, intern:{id,name,initials}, program, cohort, 
 - `GET /surveys/{id}/take` → role-scoped form and draft
 - `PUT /surveys/{id}/draft` → autosave `{answers}`
 - `POST /surveys/{id}/submit` → submit `{answers}` and recalculate analytics/signals
+- `GET /surveys/responses/export?format=xlsx` → one workbook for both Pulse forms
+- `GET /surveys/responses/export?format=csv&audience=intern|mentor` → a UTF-8 CSV for one form
+- `POST /surveys/responses/import?format=xlsx|csv` → raw file body, up to 2 MiB, returns `{imported, skipped}`
+
+File endpoints require an explicit HR demo actor. Import uses the MGTS column names and matches an existing internship and a control period from 1 to 6. An identical submitted answer is skipped. A conflicting or invalid row rejects the whole file.
 
 Survey includes `{id,title,description,status,audience,period,due_at,wave,questions,coverage}`; question `{id,type:text|scale|single|multiple,title,required,dimension,min,max,options}`.
 

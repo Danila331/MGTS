@@ -10,6 +10,7 @@ import { get } from "@/lib/api";
 import { formatDate, statusLabels } from "@/lib/format";
 import { periods } from "@/lib/mock-data";
 import type { Survey, SurveyAudience } from "@/lib/types";
+import { SurveyFiles } from "./survey-files";
 
 function SurveyLink({ survey, actorRole }: { survey?: Survey; actorRole: string }) {
   if (!survey) return <div className="rounded-lg bg-surface p-3 text-[12px] text-muted-foreground">Форма не назначена</div>;
@@ -30,6 +31,7 @@ export function SurveysView() {
 
   return <Page title="Анкеты" subtitle="Две формы · шесть контрольных периодов">
     <div className="space-y-4"><div><h2 className="text-[22px] font-semibold tracking-[-0.025em]">Библиотека Пульса</h2><p className="mt-1 text-[13px] text-muted-foreground">Фиксированные формы стажёра и наставника, без произвольного конструктора.</p></div>
+      {actor.role === "hr" && <SurveyFiles key={actor.id} onImport={reload} />}
       {loading && !data ? <LoadingState rows={6} /> : error && !data ? <ErrorState error={error} retry={reload} /> : !data?.items.length ? <EmptyState title="Анкеты пока не назначены" text="Доступные контрольные периоды появятся здесь автоматически." /> : <>
         <section className={`grid gap-3 ${audiences.length === 2 ? "md:grid-cols-2" : ""}`} aria-label="Типы форм">
           {audiences.includes("intern") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info"><UserRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Пульс-опрос стажёра</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">7 шкал 1–5, «Сложности за период» и «Что мешает работать и развиваться».</p></div></div></Panel>}

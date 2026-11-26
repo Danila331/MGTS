@@ -2,25 +2,27 @@
 
 import { cn } from "@/lib/utils";
 
-export function LineChart({ points, labels, height = 170, className }: { points: { id?: string; label: string; values: (number | null)[] }[]; labels?: string[]; height?: number; className?: string }) {
-  const width = 640; const left = 44; const right = 18; const top = 14; const bottom = height - 28;
+export function LineChart({ points, labels, width = 640, height = 170, className }: { points: { id?: string; label: string; color?: string; values: (number | null)[] }[]; labels?: string[]; width?: number; height?: number; className?: string }) {
+  const left = 44; const right = 18; const top = 14; const bottom = height - 28;
   const all = points.flatMap((point) => point.values).filter((value): value is number => value !== null);
   // Единая шкала оценки не растягивает небольшие изменения на весь график.
   const min = Math.min(1, ...all); const max = Math.max(5, ...all); const ticks = [max, (min + max) / 2, min];
   const waveLabels = labels ?? points[0]?.values.map((_, index) => `Месяц ${index + 1}`) ?? [];
+  const labelStep = Math.max(1, Math.ceil(waveLabels.length * 53 / (width - left - right)));
   const x = (index: number, length: number) => left + (index / Math.max(1, length - 1)) * (width - left - right);
   const y = (value: number) => bottom - ((value - min) / Math.max(1, max - min)) * (bottom - top);
   const coords = (values: (number | null)[]) => values.flatMap((value, index) => value === null ? [] : [`${x(index, values.length)},${y(value)}`]).join(" ");
-  const colors = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+  const palette = ["var(--chart-1)", "var(--chart-2)", "var(--chart-3)", "var(--chart-4)"];
+  const colors = points.map((point, index) => point.color ?? palette[index % palette.length]);
   return <div className={cn("min-w-0", className)}>
-    <p className="mb-1 text-[11px] text-muted-foreground">Шкала {min.toFixed(0)}–{max.toFixed(0)} · значения по месяцам доступны ниже</p>
+    <p className="mb-1 text-[11px] text-muted-foreground">Шкала {min.toFixed(0)}–{max.toFixed(0)}</p>
     <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full overflow-visible" role="img" aria-label={`Динамика по месяцам, шкала от ${min} до ${max}`}>
       {ticks.map((tick) => <g key={tick}><line x1={left} x2={width - right} y1={y(tick)} y2={y(tick)} stroke="var(--border)" strokeWidth="1" /><text x={left - 7} y={y(tick) + 3} textAnchor="end" fill="var(--muted-foreground)" fontSize="11">{tick.toFixed(1)}</text></g>)}
-      {points.map((point, index) => <g key={point.id ?? point.label}><polyline points={coords(point.values)} fill="none" stroke={colors[index % colors.length]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />{point.values.map((value, i) => value === null ? null : <circle key={i} cx={x(i, point.values.length)} cy={y(value)} r="3" fill="var(--card)" stroke={colors[index % colors.length]} strokeWidth="2"><title>{point.label}: {value.toFixed(1)}</title></circle>)}</g>)}
-      {waveLabels.map((label, index) => <text key={`${label}-${index}`} x={x(index, waveLabels.length)} y={height - 5} textAnchor={index === 0 ? "start" : index === waveLabels.length - 1 ? "end" : "middle"} fill="var(--muted-foreground)" fontSize="11">{label}</text>)}
+      {points.map((point, index) => <g key={point.id ?? point.label}><polyline points={coords(point.values)} fill="none" stroke={colors[index]} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />{point.values.map((value, i) => value === null ? null : <circle key={i} cx={x(i, point.values.length)} cy={y(value)} r="3" fill="var(--card)" stroke={colors[index]} strokeWidth="2"><title>{point.label}: {value.toFixed(1)}</title></circle>)}</g>)}
+      {waveLabels.map((label, index) => index % labelStep === 0 && <text key={`${label}-${index}`} x={x(index, waveLabels.length)} y={height - 5} textAnchor={index === 0 ? "start" : index === waveLabels.length - 1 ? "end" : "middle"} fill="var(--muted-foreground)" fontSize="11">{label}</text>)}
     </svg>
-    <table className="sr-only"><caption>Значения динамики по месяцам</caption><thead><tr><th>Измерение</th>{waveLabels.map((label, index) => <th key={`${label}-${index}`}>{label}</th>)}</tr></thead><tbody>{points.map((point) => <tr key={point.id ?? point.label}><th>{point.label}</th>{point.values.map((value, index) => <td key={index}>{value === null ? "Нет данных" : value.toFixed(1)}</td>)}</tr>)}</tbody></table>
-    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">{points.map((point, index) => <span key={point.id ?? point.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="size-2 rounded-full" style={{ background: colors[index % colors.length] }} />{point.label}</span>)}</div>
+    <div className="sr-only"><table><caption>Значения динамики по месяцам</caption><thead><tr><th>Измерение</th>{waveLabels.map((label, index) => <th key={`${label}-${index}`}>{label}</th>)}</tr></thead><tbody>{points.map((point) => <tr key={point.id ?? point.label}><th>{point.label}</th>{point.values.map((value, index) => <td key={index}>{value === null ? "Нет данных" : value.toFixed(1)}</td>)}</tr>)}</tbody></table></div>
+    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">{points.map((point, index) => <span key={point.id ?? point.label} className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><span className="size-2 rounded-full" style={{ background: colors[index] }} />{point.label}</span>)}</div>
   </div>;
 }
 export function Sparkline({ values, positive = true }: { values: number[]; positive?: boolean }) {

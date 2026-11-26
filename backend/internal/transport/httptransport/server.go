@@ -52,6 +52,8 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	api.PATCH("/internships/:id", h.patchInternship)
 	api.GET("/surveys", h.surveys)
 	api.POST("/surveys", h.createSurvey)
+	api.GET("/surveys/responses/export", h.exportSurveyResponses)
+	api.POST("/surveys/responses/import", h.importSurveyResponses)
 	api.GET("/surveys/:id", h.survey)
 	api.PATCH("/surveys/:id", h.patchSurvey)
 	api.DELETE("/surveys/:id", h.deleteSurvey)

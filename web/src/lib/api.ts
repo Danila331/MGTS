@@ -16,7 +16,7 @@ export function getApiMode() { return API_MODE; }
 
 async function rawRemote(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
   const fullPath = path.startsWith(BASE) ? path : `${BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const url = new URL(prepareRemotePath(fullPath), "http://remote.local");
   url.searchParams.set("actor_id", toBackendId(currentActor));
@@ -33,6 +33,19 @@ async function errorFromResponse(response: Response) {
   } catch { /* backend может вернуть не JSON */ }
   return new ApiError(response.status, message, code);
 }
+
+export async function surveyFileRequest(path: string, init: RequestInit = {}) {
+  if (API_MODE === "mock") throw new ApiError(0, "Импорт и выгрузка доступны в режиме Go API", "mock_mode");
+  let response: Response;
+  try {
+    response = await rawRemote(path, init);
+  } catch {
+    throw new ApiError(0, "Не удалось подключиться к API для работы с файлами", "network_error");
+  }
+  if (!response.ok) throw await errorFromResponse(response);
+  return response;
+}
+
 async function remote<T>(path: string, init: RequestInit): Promise<T> {
   const remoteInit = { ...init };
   if (init.body) remoteInit.body = JSON.stringify(prepareRemoteBody(path, JSON.parse(String(init.body)), currentActor));
