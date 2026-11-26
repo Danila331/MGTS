@@ -11,7 +11,7 @@ import { Badge, ErrorState, LoadingState, Page } from "@/components/page";
 import { SurveyQuestions } from "@/components/survey-questions";
 import { Button } from "@/components/ui/button";
 import { useResource } from "@/hooks/use-resource";
-import { get, post, put } from "@/lib/api";
+import { get, getApiActor, post, put } from "@/lib/api";
 import { formatDate } from "@/lib/format";
 import type { Actor, Answers, InternItem, Question, Survey, SurveyDetail, SurveyTake } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -60,44 +60,70 @@ function TakeForm({ survey, questions, initial, internshipId, actor }: { survey:
   const [submitted, setSubmitted] = useState(false);
   const [busy, setBusy] = useState(false);
   const dirty = useRef(false);
+  const revision = useRef(0);
+  const submitting = useRef(false);
+  const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftWrite = useRef(Promise.resolve());
   const readOnly = survey.status !== "published" || actor.role !== survey.audience;
   const query = internshipQuery(internshipId);
   useEffect(() => {
-    if (!dirty.current || readOnly) return;
+    if (!dirty.current || readOnly || busy || submitted) return;
+    const editedAt = revision.current;
+    let cancelled = false;
     const timer = setTimeout(() => {
-      setSaveState("saving");
-      put(`/surveys/${survey.id}/draft${query}`, { answers }).then(() => { dirty.current = false; setSaveState("saved"); }).catch(() => setSaveState("error"));
+      draftWrite.current = draftWrite.current.then(async () => {
+        if (cancelled || submitting.current || editedAt !== revision.current || getApiActor() !== actor.id) return;
+        setSaveState("saving");
+        try {
+          await put(`/surveys/${survey.id}/draft${query}`, { answers });
+          if (editedAt === revision.current) {
+            dirty.current = false;
+            setSaveState("saved");
+          }
+        } catch {
+          if (editedAt === revision.current) setSaveState("error");
+        }
+      });
     }, 700);
-    return () => clearTimeout(timer);
-  }, [answers, survey.id, query, readOnly]);
+    draftTimer.current = timer;
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [answers, actor.id, survey.id, query, readOnly, busy, submitted]);
   const update = (question: Question, value: string | number | string[]) => {
-    if (readOnly) return;
+    if (readOnly || submitting.current) return;
+    revision.current++;
     dirty.current = true;
     setSaveState("dirty");
     setAnswers((current) => ({ ...current, [question.id]: value }));
   };
   const answered = questions.filter((question) => answers[question.id] !== undefined && answers[question.id] !== "" && (!Array.isArray(answers[question.id]) || (answers[question.id] as string[]).length > 0)).length;
   const submit = async () => {
-    if (readOnly) return;
+    if (readOnly || submitting.current) return;
     const missing = questions.filter((question) => question.required && (answers[question.id] === undefined || answers[question.id] === "" || (Array.isArray(answers[question.id]) && (answers[question.id] as string[]).length === 0)));
     if (missing.length) {
       toast.error(`Заполните обязательные вопросы: ${missing.length}`);
       document.getElementById(`question-${missing[0].id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    submitting.current = true;
+    if (draftTimer.current !== null) clearTimeout(draftTimer.current);
     setBusy(true);
     try {
+      await draftWrite.current;
+      if (getApiActor() !== actor.id) return;
       await post(`/surveys/${survey.id}/submit${query}`, { answers });
       dirty.current = false;
       setSubmitted(true);
       toast.success("Ответ отправлен");
       window.scrollTo({ top: 0, behavior: "smooth" });
-    } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Не удалось отправить"); } finally { setBusy(false); }
+    } catch (reason) { toast.error(reason instanceof Error ? reason.message : "Не удалось отправить"); } finally {
+      submitting.current = false;
+      setBusy(false);
+    }
   };
   if (submitted) return <div className="mx-auto flex max-w-xl flex-col items-center py-12 text-center"><span className="flex size-12 items-center justify-center rounded-full bg-success-soft text-success"><CheckCircle2 className="size-6" /></span><h2 className="mt-5 text-[22px] font-semibold">Спасибо, ответ сохранён</h2><p className="mt-2 text-[14px] leading-6 text-muted-foreground">Ответ учтён в покрытии контрольного периода.</p><div className="mt-6 flex flex-wrap justify-center gap-2"><Link href="/surveys"><Button>Вернуться к анкетам</Button></Link><Link href={actor.role === "intern" ? "/me" : "/dashboard"}><Button variant="outline">{actor.role === "intern" ? "Мой Пульс" : "К рейтингу"}</Button></Link></div></div>;
   return <div><Link href="/surveys" className="inline-flex min-h-11 items-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"><ArrowLeft className="size-3.5" />Все анкеты</Link><div className="mt-4"><div className="flex flex-wrap items-center gap-2"><Badge tone="info">{survey.period}</Badge>{readOnly && <Badge>{survey.status === "closed" ? "Период закрыт" : "Просмотр"}</Badge>}<span className="text-[12px] text-muted-foreground">Ответить до {formatDate(survey.due_at)}</span></div><h2 className="mt-3 text-[24px] font-semibold tracking-[-0.025em]">{survey.title}</h2><p className="mt-2 text-[14px] leading-6 text-muted-foreground">{survey.description}</p></div>
     <div className="sticky top-0 z-10 mt-5 rounded-xl border bg-card p-3 shadow-[var(--shadow-float)]"><div className="mb-2 flex items-center justify-between gap-3 text-[11px]"><span className="tnum text-muted-foreground">Отвечено {answered} из {questions.length}</span><span className={cn("flex items-center gap-1.5", saveState === "error" ? "text-destructive" : "text-muted-foreground")} role="status">{readOnly ? "Только просмотр" : saveState === "saving" ? <><Clock3 className="size-3" />Сохраняю…</> : saveState === "dirty" ? <><Save className="size-3" />Есть изменения</> : saveState === "error" ? "Не сохранено · измените ответ для повтора" : <><Check className="size-3 text-success" />Черновик сохранён</>}</span></div><ProgressBar value={questions.length ? Math.round(answered / questions.length * 100) : 0} /></div>
-    <SurveyQuestions audience={survey.audience} answers={answers} questions={questions} readOnly={readOnly} update={update} />
+    <SurveyQuestions audience={survey.audience} answers={answers} questions={questions} readOnly={readOnly || busy} update={update} />
     <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-[11px] leading-4 text-muted-foreground">Черновик виден только вам.<br />После отправки ответ попадёт в текущий контрольный период.</p><Button size="lg" className="min-h-11" onClick={submit} disabled={busy || !questions.length || readOnly}><Send />{busy ? "Отправляю…" : readOnly ? "Отправка недоступна" : "Отправить ответ"}</Button></div>
   </div>;
 }

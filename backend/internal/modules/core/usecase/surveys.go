@@ -312,9 +312,6 @@ func (s *Service) SaveDraft(ctx context.Context, actorID, surveyID, internshipID
 		if err != nil {
 			return err
 		}
-		if assignment.Status == "submitted" {
-			return domain.ErrConflict
-		}
 		if err := validateAnswers(survey, answers, false); err != nil {
 			return err
 		}
@@ -337,8 +334,11 @@ func (s *Service) SaveDraft(ctx context.Context, actorID, surveyID, internshipID
 				Wave: survey.Wave, Answers: cloneAnswers(answers), Status: "draft", Version: 1, CreatedAt: now, UpdatedAt: now}
 			state.Responses[id] = result
 		}
-		assignment.Status = "draft"
-		state.Assignments[assignment.ID] = assignment
+		// A correction draft must not withdraw the existing submitted response.
+		if assignment.Status != "submitted" {
+			assignment.Status = "draft"
+			state.Assignments[assignment.ID] = assignment
+		}
 		state.Touch()
 		return nil
 	})
