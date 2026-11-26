@@ -1,5 +1,1165 @@
 <!doctype html>
 <html lang="ru">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>MGTS</title></head>
-<body><main><h1>MGTS</h1><p>Проект готовится к запуску.</p></main></body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Стажировки МГТС</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #132e51;
+  --muted: #4e6481;
+  --page: #eef5fb;
+  --white: #fff;
+  --blue: #1669b6;
+  --plot: #0c315a;
+  --chart-text: #c3d9f0;
+  --grid: #315479;
+  --signal: #ff9475;
+  --rust: #9c3c26;
+  --border: #d7e4f1;
+  font: 400 16px/1.45 "Golos Text", "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: var(--page);
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+button { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; }
+button:focus-visible, summary:focus-visible, a:focus-visible { outline: 3px solid #ef7557; outline-offset: 3px; }
+[hidden] { display: none !important; }
+h1, h2, h3, p, figure, blockquote { margin: 0; }
+svg { display: block; }
+small { font-size: .8125rem; }
+.wrap { width: min(100% - 80px, 1400px); margin-inline: auto; }
+.topbar { background: var(--white); border-bottom: 1px solid var(--border); }
+.topbar-inner { display: flex; align-items: center; justify-content: space-between; min-height: 67px; gap: 14px; }
+.identity { display: flex; align-items: center; gap: 16px; font-size: .875rem; color: var(--muted); }
+.wordmark { color: var(--blue); font-size: 1.42rem; letter-spacing: -.08em; font-weight: 800; border-right: 1px solid var(--border); padding-right: 16px; line-height: 1; }
+.demo { font-size: .8125rem; color: var(--muted); font-weight: 500; }
+.page { padding-block: 34px 64px; }
+.page-head { display: flex; align-items: end; justify-content: space-between; gap: 18px; margin-bottom: 23px; }
+h1 { font-size: clamp(2.35rem, 4vw, 3.8rem); line-height: 1.02; font-weight: 700; letter-spacing: -.062em; }
+.page-head p { margin-top: 10px; color: var(--muted); font-size: .94rem; }
+
+
+
+.visuals { display: grid; grid-template-columns: minmax(0, 1.68fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.distribution, .trend { display: flex; flex-direction: column; min-width: 0; padding: 24px; border-radius: 22px; }
+.distribution { background: var(--plot); color: var(--white); }
+.trend { background: var(--white); border: 1px solid var(--border); }
+h2 { font-size: clamp(1.3rem, 2vw, 1.72rem); line-height: 1.13; font-weight: 600; letter-spacing: -.034em; }
+.chart-head { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.chart-head p { margin-top: 7px; font-size: .86rem; color: var(--muted); }
+.distribution .chart-head p { color: var(--chart-text); }
+.scale-note { color: var(--chart-text); flex: none; border: 1px solid var(--grid); border-radius: 6px; padding: 4px 8px; font-size: .75rem; }
+.dist-figure { margin-top: 24px; }
+.dot-plot { height: 213px; position: relative; margin: 0 18px 0 29px; border-bottom: 1px solid #7293b5; }
+.plot-grid { position: absolute; inset: 0; pointer-events: none; }
+.plot-grid > div { position: absolute; left: 0; width: 100%; border-top: 1px solid var(--grid); }
+.plot-grid > div > span { position: absolute; top: -.6em; right: calc(100% + 9px); color: var(--chart-text); font-size: .72rem; }
+.count-label { position: absolute; top: -7px; left: 0; color: var(--chart-text); font-size: .72rem; }
+.plot-grid .x-tick { position: absolute; top: calc(100% + 7px); color: var(--chart-text); font-size: .75rem; transform: translateX(-50%); white-space: nowrap; }
+.plot-grid .x-tick.at-baseline { color: var(--white); font-weight: 700; }
+.dist-line { position: absolute; bottom: 0; top: 0; border-left: 1px dashed #79afdb; }
+.dist-line.rule-line { border-color: #ff9475a6; }
+.dist-callout { position: absolute; top: -7px; color: #e3f0fc; font-size: .72rem; white-space: nowrap; transform: translateX(-50%); padding-inline: 5px; background: var(--plot); }
+.dist-callout.end { transform: translateX(-100%); }
+.chart-point { position: absolute; transform: translate(-50%, 50%); width: 31px; height: 30px; border: 0; border-radius: 50%; background: transparent; color: #8bd3ff; display: grid; place-items: center; padding: 0; touch-action: manipulation; }
+.chart-point::after { content: ""; width: min(var(--point-size, 13px), 95%); aspect-ratio: 1; border-radius: 50%; background: currentColor; transition: transform .15s; }
+.chart-point.is-signal { color: var(--signal); }
+.chart-point.is-signal::after { border-radius: 3px; rotate: 45deg; }
+.chart-point:hover::after, .chart-point:focus-visible::after { transform: scale(1.26); }
+.chart-point:focus-visible { z-index: 2; outline-color: white; outline-offset: 0; }
+.dot-caption { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 10px; color: var(--chart-text); font-size: .79rem; margin-top: 34px; }
+.dot-caption .legend { display: flex; flex-wrap: wrap; gap: 6px 15px; }
+.key { display: inline-flex; align-items: center; gap: 7px; }
+.dot, .diamond { width: 9px; height: 9px; background: #8bd3ff; display: inline-block; border-radius: 50%; flex: none; }
+.diamond { border-radius: 2px; transform: rotate(45deg); background: var(--signal); }
+.rule-control { margin-top: 17px; padding-top: 13px; border-top: 1px solid var(--grid); }
+.rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
+.rule-label { color: var(--chart-text); font-size: .75rem; margin-right: 4px; }
+.rule { border: 1px solid var(--grid); border-radius: 6px; color: #d2e6f9; background: transparent; padding: 6px 9px; font-size: .79rem; font-weight: 500; }
+.rule:hover { background: #244e79; }
+.rule[aria-pressed="true"] { background: #d5eaff; border-color: #d5eaff; color: #123758; }
+.rule:disabled { opacity: .5; }
+#rule-description { color: var(--chart-text); font-size: .76rem; margin-top: 8px; min-height: 1.4em; }
+.trend .chart-head { margin-bottom: 25px; }
+.trend-figure { margin-block: auto; }
+.trend-figure svg { width: 100%; overflow: visible; }
+.trend .legend { display: flex; flex-wrap: wrap; gap: 7px 16px; color: var(--muted); font-size: .79rem; margin-block: 14px; }
+.legend-line { width: 17px; border-top: 3px solid var(--blue); border-radius: 3px; }
+.legend-line.intern { border-top: 2px dashed #687b9f; }
+.trend-note { margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border); color: var(--muted); font-size: .79rem; }
+.queue { margin-top: 29px; }
+.queue-head { display: flex; justify-content: space-between; align-items: end; gap: 10px; margin-bottom: 12px; }
+.queue-head p { font-size: .82rem; color: var(--muted); text-align: right; }
+.queue-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.queue-button { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 11px; align-content: start; min-width: 0; text-align: left; background: var(--white); color: var(--ink); border: 1px solid var(--border); border-radius: 11px; padding: 13px 15px; }
+.queue-button:hover { border-color: #83b7e7; background: #f8fbff; }
+.queue-button span { font-size: .86rem; }
+.queue-button strong { font-size: .94rem; }
+.queue-button small { color: var(--muted); grid-column: 1 / -1; }
+.queue-button .queue-score { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--white); }
+.stage { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 10px; }
+.stage + .stage { border-left: 1px solid var(--border); }
+.stage span { grid-column: 1 / -1; padding-inline: 7px; color: var(--muted); font-size: .79rem; font-weight: 600; }
+.stage button { min-width: 0; min-height: 38px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--ink); font-size: .875rem; }
+.stage button:hover { background: var(--page); }
+.stage button[aria-pressed="true"] { background: #e0efff; border-color: #c3def8; color: #154678; font-weight: 700; }
+.queue-groups { display: grid; gap: 15px; }
+.queue-group h3 { font-size: .875rem; font-weight: 650; margin-bottom: 6px; }
+.queue-group[data-kind="issue"] h3, .queue-meta-issue { color: var(--rust); }
+.queue-group[data-kind="growth"] h3 { color: #246557; }
+.queue-group[data-kind="growth"] .queue-button { border-inline-start: 3px solid #77af9c; }
+.queue-group[data-kind="issue"] .queue-button { border-inline-start: 3px solid #db8b72; }
+.queue-button .queue-status { grid-column: 1 / -1; font-size: .75rem; font-weight: 650; }
+.ai-quotes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-top: 9px; }
+.ai-quotes blockquote { margin-top: 5px; border-left: 2px solid #9bbddb; padding-left: 8px; font-size: .83rem; }
+.ai .meta { margin-top: 6px; }
+.followup summary { cursor: pointer; color: var(--blue); font-weight: 650; }
+.followup label { display: grid; gap: 5px; margin-block: 10px; font-size: .875rem; }
+.followup textarea { resize: vertical; width: 100%; min-height: 75px; padding: 8px; font: inherit; border: 1px solid #a7bdd4; border-radius: 7px; color: var(--ink); }
+.followup button { background: var(--plot); border: 0; border-radius: 7px; color: white; padding: 8px 12px; font-size: .875rem; }
+.review-note { margin-top: 7px; font-size: .875rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.save-status { color: var(--muted); font-size: .82rem; }
+@media (max-width: 560px) {
+  .stage { grid-template-columns: 1fr; padding: 6px 3px; }
+  .stage span { min-height: 2.9em; padding-inline: 4px; font-size: .72rem; }
+  .ai-quotes { grid-template-columns: 1fr; gap: 5px; }
+}
+.empty { background: var(--white); border: 1px solid var(--border); padding: 15px; border-radius: 11px; color: var(--muted); grid-column: 1/-1; font-size: .875rem; }
+dialog { margin: 0 0 0 auto; position: fixed; inset: 0 0 0 auto; width: min(590px, 100%); max-width: none; max-height: 100%; height: 100%; border: 0; background: #f6faff; color: var(--ink); padding: 0; overscroll-behavior: contain; }
+dialog[open] { box-shadow: -12px 0 60px #08233b35; }
+dialog::backdrop { background: #092b4b70; }
+body:has(dialog[open]) { overflow: hidden; }
+.drawer-head { background: var(--white); border-bottom: 1px solid var(--border); padding: 23px 25px 19px; display: flex; justify-content: space-between; gap: 10px; align-items: start; }
+.drawer-head h2 { margin-top: 3px; font-size: 1.87rem; }
+.drawer-head .meta, .drawer-block .meta { color: var(--muted); font-size: .8rem; }
+.close { display: grid; place-items: center; width: 42px; height: 42px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); color: var(--ink); font-size: 1.4rem; line-height: 1; }
+.close:hover { background: var(--page); }
+.drawer-content { padding: 19px 25px 31px; display: grid; gap: 15px; }
+.numbers { display: flex; flex-wrap: wrap; gap: 8px 15px; color: var(--muted); font-size: .86rem; }
+.numbers strong { color: var(--ink); font-size: 1.1rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.drawer-block { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.ai { background: #e8f3ff; border-color: #b9d5ef; }
+.drawer-block h3 { font-size: 1.08rem; font-weight: 700; }
+.ai .ai-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
+.ai-lead { font-size: 1.13rem; letter-spacing: -.025em; font-weight: 700; line-height: 1.25; }
+.ai-body, .ai-action { margin-top: 8px; font-size: .9rem; }
+.ai-action { border-top: 1px solid #c4dcf4; padding-top: 9px; }
+.ai-action strong { font-weight: 700; }
+.metric-key { margin: 5px 0 10px; color: var(--muted); font-size: .78rem; }
+.metric-list { display: grid; gap: 6px; }
+.metric { display: grid; grid-template-columns: minmax(6.5rem, 1.15fr) minmax(3rem, 1fr) 1.4rem; align-items: center; gap: 9px; font-size: .77rem; }
+.metric-track { height: 7px; border-radius: 4px; position: relative; background: #e5edf6; }
+.metric-bar { height: 100%; border-radius: 4px; background: #4a9bdb; }
+.metric.is-signal .metric-bar { background: #e07554; }
+.metric-reference { position: absolute; top: -3px; height: 13px; width: 2px; transform: translateX(-1px); background: #324f73; }
+.metric strong { justify-self: end; font-variant-numeric: tabular-nums; }
+.evidence h3 { margin-bottom: 8px; }
+.evidence details + details { border-top: 1px solid var(--border); }
+.evidence summary { padding: 9px 0; cursor: pointer; font-size: .86rem; font-weight: 600; }
+.evidence blockquote { border-left: 2px solid #8ab7df; padding-left: 10px; font-size: .88rem; margin: 0 0 10px; }
+.evidence small { display: block; color: var(--muted); margin-top: 5px; }
+.case-history svg { width: 100%; margin-top: 8px; }
+
+.metric-chart, .insight-panel { min-width:0; background:#fff; border:1px solid var(--border); border-radius:20px; padding:24px; }
+.metric-chart .chart-head p, .insight-sub { color:var(--muted); font-size:.86rem; margin-top:7px; }
+.metric-chart .scale-note { color:var(--muted); border-color:var(--border); }
+.metric-controls { display:flex; flex-wrap:wrap; gap:6px; margin:20px 0 12px; }
+.metric-controls button { border:1px solid var(--border); border-radius:7px; background:white; color:var(--ink); padding:8px 10px; font-size:.8rem; }
+.metric-controls button[aria-pressed="true"] { background:#e6f2fe; border-color:#a9cfee; font-weight:700; }
+.metric-dot { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:6px; background:#1669b6; }
+.metric-dot.support { background:#9155b4; }
+.metric-dot.workload { background:#dc7453; }
+.primary-figure svg { width:100%; height:auto; display:block; }
+.primary-figure figcaption { color:var(--muted); font-size:.78rem; text-align:right; }
+.chart-foot { border-top:1px solid var(--border); padding-top:12px; margin-top:14px; color:var(--muted); font-size:.8rem; }
+.insight-panel h2 { font-size:1.45rem; }
+.insight-section { padding:15px 0; border-bottom:1px solid var(--border); }
+.insight-section:last-child { border-bottom:0; }
+.insight-section h3 { font-size:.88rem; margin-bottom:7px; }
+.insight-toggle { width:100%; display:flex; justify-content:space-between; gap:10px; align-items:center; background:none; border:0; border-radius:6px; padding:7px 0; text-align:left; color:var(--ink); font-size:.85rem; }
+.insight-toggle strong { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.insight-toggle:hover { color:var(--blue); }
+.insight-list { display:grid; gap:5px; padding:4px 0 8px; }
+.insight-person { text-align:left; background:#f1f7fd; color:var(--ink); border:0; border-radius:6px; padding:8px 10px; font-size:.83rem; }
+.insight-person:hover { background:#dfedfc; }
+.insight-empty { color:var(--muted); font-size:.83rem; }
+.case-select { width:100%; margin-top:9px; border:1px solid var(--border); border-radius:6px; padding:8px; font:inherit; color:var(--ink); background:white; }
+@media (max-width: 790px) { .metric-chart, .insight-panel { padding:18px; } }
+
+.additional-charts { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:16px; margin-top:16px; }
+.data-panel { min-width:0; background:white; border:1px solid var(--border); border-radius:20px; padding:24px; }
+.data-panel .chart-head p { margin-top:7px; color:var(--muted); font-size:.86rem; }
+.distribution-legend { display:flex; flex-wrap:wrap; gap:10px 16px; margin:18px 0 22px; color:var(--muted); font-size:.78rem; }
+.distribution-legend span { display:inline-flex; align-items:center; gap:6px; }
+.distribution-legend i { width:9px; height:9px; border-radius:50%; background:#abc9e3; }
+.distribution-legend i.low { background:#dc7453; }
+.distribution-legend i.high { background:#1d77bf; }
+.distribution-row { margin-bottom:17px; }
+.distribution-row h3 { margin-bottom:6px; font-size:.85rem; font-weight:600; }
+.distribution-bars { display:flex; height:35px; border-radius:7px; overflow:hidden; background:#edf4fa; }
+.distribution-bars button { min-width:38px; border:0; border-right:2px solid white; background:#abc9e3; color:#123555; font-size:.8rem; font-weight:700; }
+.distribution-bars button[data-value="1"], .distribution-bars button[data-value="2"] { background:#dc7453; color:white; }
+.distribution-bars button[data-value="4"], .distribution-bars button[data-value="5"] { background:#1d77bf; color:white; }
+.distribution-bars button[aria-expanded="true"] { box-shadow:inset 0 0 0 3px #173d66; }
+.distribution-values { display:flex; gap:8px; min-height:24px; flex-wrap:wrap; margin-top:7px; }
+.distribution-values button { border:0; border-radius:5px; background:#edf5fc; color:var(--ink); padding:4px 8px; font-size:.78rem; }
+.chart-caption { color:var(--muted); font-size:.78rem; margin-top:12px; }
+.comparison-legend { display:flex; gap:16px; flex-wrap:wrap; margin:18px 0 10px; font-size:.78rem; color:var(--muted); }
+.comparison-legend span { display:flex; align-items:center; gap:6px; }
+.comparison-legend i { width:10px; height:10px; border-radius:50%; background:#1d77bf; }
+.comparison-legend i.mentor { border-radius:2px; background:#9155b4; }
+.comparison-row { width:100%; display:grid; grid-template-columns:65px minmax(0,1fr) 60px; gap:10px; align-items:center; padding:6px 0; border:0; background:transparent; color:var(--ink); text-align:left; font-size:.8rem; }
+.comparison-row:hover { color:var(--blue); }
+.comparison-axis { position:relative; height:28px; margin:0 8px; background:repeating-linear-gradient(to right, #e2ebf4 0 1px, transparent 1px 25%); }
+.comparison-connector { position:absolute; top:13px; height:2px; background:#bdcddd; }
+.comparison-point { position:absolute; top:7px; width:14px; height:14px; transform:translateX(-50%); border-radius:50%; background:#1d77bf; border:2px solid white; }
+.comparison-point.mentor { top:12px; border-radius:3px; background:#9155b4; }
+.comparison-ticks { display:grid; grid-template-columns:65px minmax(0,1fr) 60px; gap:10px; color:var(--muted); font-size:.72rem; }
+.comparison-ticks div { display:flex; justify-content:space-between; margin:0 8px; }
+.comparison-values { text-align:right; font-variant-numeric:tabular-nums; }
+.comparison-more { margin-top:10px; border:1px solid var(--border); border-radius:6px; padding:7px 10px; background:white; color:var(--blue); font:inherit; font-size:.8rem; }
+@media (max-width:790px) { .additional-charts { grid-template-columns:1fr; } .data-panel { padding:18px; } }
+
+.view-switch { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 9px; }
+.view-switch button { border:1px solid var(--border); border-radius:7px; background:white; color:var(--ink); padding:9px 14px; font-size:.86rem; }
+.view-switch button[aria-pressed="true"] { background:var(--plot); border-color:var(--plot); color:white; }
+.date-disclaimer { color:var(--muted); font-size:.78rem; margin-bottom:12px; }
+.calendar-periods { display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); padding:7px; gap:4px; }
+.calendar-periods button { min-height:40px; border:1px solid transparent; border-radius:7px; background:transparent; color:var(--ink); font:inherit; font-size:.85rem; }
+.calendar-periods button[aria-pressed="true"] { background:#e0efff; border-color:#c3def8; color:#154678; font-weight:700; }
+.calendar-periods button:hover { background:#edf5fd; }
+@media(max-width:560px) { .calendar-periods { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+
+.topic-chart, .department-chart { display:grid; gap:8px; margin-top:22px; }
+.topic-row, .department-row { display:grid; grid-template-columns:minmax(125px, 1.15fr) minmax(70px, 1fr) auto; align-items:center; gap:10px; width:100%; border:0; border-radius:6px; padding:8px 4px; background:transparent; color:var(--ink); font:inherit; font-size:.83rem; text-align:left; }
+.topic-row:hover, .department-row:hover { background:#eef6fd; }
+.topic-row[aria-expanded="true"], .department-row[aria-expanded="true"] { background:#eaf4fd; }
+.topic-bar, .department-bar { height:9px; background:#e9f1f8; border-radius:6px; overflow:hidden; }
+.topic-bar i, .department-bar i { display:block; height:100%; border-radius:6px; background:#2782c4; }
+.topic-row strong, .department-row strong { white-space:nowrap; font-size:.8rem; font-variant-numeric:tabular-nums; }
+.topic-people, .department-people { display:flex; flex-wrap:wrap; gap:6px; padding:3px 0 8px; }
+.topic-people button, .department-people button { border:0; border-radius:5px; padding:6px 9px; background:#eaf4fd; color:var(--ink); font-size:.8rem; }
+@media(max-width:400px) { .topic-row, .department-row { grid-template-columns:minmax(95px, 1fr) minmax(45px, 1fr) auto; } }
+
+.dataset-switch { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:13px; }
+.dataset-switch span { color:var(--muted); font-size:.85rem; margin-right:4px; }
+.dataset-switch button { border:1px solid var(--border); border-radius:7px; background:white; color:var(--ink); padding:8px 12px; font-size:.84rem; }
+.dataset-switch button[aria-pressed="true"] { background:#dcefff; border-color:#a9cfee; font-weight:700; }
+.ranking-section { margin-top:32px; }
+.ranking-section .queue-head p { text-align:left; margin-top:5px; }
+.rank-legend { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 6px; }
+.rank-key { font-size:.75rem; font-weight:700; border-radius:5px; padding:4px 8px; }
+.rank-5 { background:#d8f1e3; color:#185d3b; }
+.rank-4 { background:#e4f3e8; color:#306843; }
+.rank-3 { background:#eaf1f8; color:#355774; }
+.rank-2 { background:#fff0d8; color:#875b16; }
+.rank-1 { background:#ffe5df; color:#9b3d2b; }
+.rank-note { color:var(--muted); font-size:.78rem; margin-bottom:12px; }
+.ranking-scroll { overflow-x:auto; border:1px solid var(--border); border-radius:12px; background:white; }
+.ranking-table { border-collapse:collapse; min-width:1020px; width:100%; font-size:.82rem; }
+.ranking-table th, .ranking-table td { text-align:left; padding:12px 10px; border-bottom:1px solid #e8eff6; white-space:nowrap; }
+.ranking-table th { color:var(--muted); font-size:.75rem; font-weight:600; vertical-align:bottom; }
+.ranking-table th button { border:0; background:transparent; padding:0; color:inherit; text-align:left; font:inherit; }
+.ranking-table th[aria-sort] button { color:var(--blue); }
+.ranking-table td button { border:0; background:transparent; padding:0; color:var(--blue); font:inherit; font-weight:700; }
+.ranking-table tbody tr:last-child td { border-bottom:0; }
+.ranking-table tbody tr.rank-5 { background:#f0faf4; }
+.ranking-table tbody tr.rank-4 { background:#f5fbf5; }
+.ranking-table tbody tr.rank-3 { background:#f7faff; }
+.ranking-table tbody tr.rank-2 { background:#fffaef; }
+.ranking-table tbody tr.rank-1 { background:#fff3f0; }
+.ranking-table .rank-badge { display:inline-block; border-radius:5px; padding:4px 7px; font-weight:700; }
+.topic-bar { display:flex; background:transparent; gap:2px; }
+.topic-bar i.topic-negative { background:#ca604c; }
+.topic-bar i.topic-positive { background:#40936a; }
+.topic-legend { display:flex; gap:16px; flex-wrap:wrap; font-size:.78rem; color:var(--muted); margin-top:15px; }
+.topic-legend span { display:flex; align-items:center; gap:6px; }
+.topic-legend i { width:9px; height:9px; border-radius:50%; background:#ca604c; }
+.topic-legend i.positive { background:#40936a; }
+@media (min-width: 1450px) { .dot-plot { height: 232px; } }
+@media (max-width: 1080px) {
+  .wrap { width: calc(100% - 48px); }
+  .distribution, .trend { padding: 18px; }
+  .visuals { grid-template-columns: minmax(0, 1.42fr) minmax(0, 1fr); }
+  .queue-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 790px) {
+  .visuals { grid-template-columns: minmax(0, 1fr); }
+  .trend-figure { max-width: 520px; margin-inline: auto; width: 100%; }
+  .trend .chart-head { margin-bottom: 12px; }
+}
+@media (max-width: 560px) {
+  .wrap { width: calc(100% - 28px); }
+  .page { padding-top: 24px; }
+  .page-head { flex-direction: column; align-items: start; }
+  .chart-head { flex-wrap: wrap; gap: 7px; }
+  .dot-plot { margin-right: 15px; }
+  .queue-list { grid-template-columns: minmax(0, 1fr); }
+  .drawer-head, .drawer-content { padding-inline: 15px; }
+}
+@media (max-width: 365px) { .identity > span:last-child { display: none; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-inner">
+    <div class="identity"><span class="wordmark">МГТС</span><span>Аналитика стажировок</span></div>
+    <p class="demo">Анкеты организаторов · даты демонстрационные</p>
+  </div>
+</header>
+<main class="wrap page">
+  <div class="page-head">
+    <div>
+      <h1>Стажировки</h1>
+      <p id="population-caption">5 стажёров · демонстрация разных дат начала</p>
+    </div>
+  </div>
+  <div class="dataset-switch" role="group" aria-label="Выбор данных">
+    <span>Выборка</span><button type="button" data-dataset="organizers" aria-pressed="true">Организаторы · 5</button>
+    <button type="button" data-dataset="demo" aria-pressed="false">Демо · 50</button>
+  </div>
+  <div class="view-switch" role="group" aria-label="Режим дашборда">
+    <button type="button" data-view="calendar" aria-pressed="true">По календарю</button>
+    <button type="button" data-view="stage" aria-pressed="false">По этапам</button>
+  </div>
+  <p class="date-disclaimer" id="dataset-note">Даты начала и отправки анкет демонстрационные. Оценки и ответы — из материалов организаторов.</p>
+  <nav class="stages" aria-label="Период дашборда" id="period-navigation"></nav>
+  <div class="visuals">
+    <section class="metric-chart" aria-labelledby="metric-title">
+      <div class="chart-head"><div><h2 id="metric-title">Как проходит стажировка</h2>
+        <p id="chart-description">Оценки стажёров по датам ответа · среднее по каждому вопросу</p></div><span class="scale-note">Шкала 1–5</span></div>
+      <div class="metric-controls" role="group" aria-label="Выбор показателя">
+        <button type="button" data-metric="all" aria-pressed="true">Все показатели</button>
+        <button type="button" data-metric="0" aria-pressed="false"><i class="metric-dot clarity"></i>Понятность задач</button>
+        <button type="button" data-metric="1" aria-pressed="false"><i class="metric-dot support"></i>Поддержка</button>
+        <button type="button" data-metric="2" aria-pressed="false"><i class="metric-dot workload"></i>Нагрузка</button>
+      </div>
+      <figure class="primary-figure"><div id="primary-chart"></div><figcaption id="chart-axis">Календарный месяц</figcaption></figure>
+      <p class="chart-foot" id="coverage"></p>
+    </section>
+    <aside class="insight-panel" aria-labelledby="insight-title">
+      <h2 id="insight-title">Что проверить</h2>
+      <p class="insight-sub" id="insight-period"></p>
+      <div id="insights"></div>
+    </aside>
+  </div>
+  <div class="additional-charts">
+    <section class="data-panel" aria-labelledby="distribution-title">
+      <div class="chart-head"><div><h2 id="distribution-title">Распределение оценок</h2>
+        <p>Ответы стажёров за выбранный период</p></div></div>
+      <div id="score-distribution"></div>
+      <p class="chart-caption">Нажмите на оценку, чтобы увидеть стажёров</p>
+    </section>
+    <section class="data-panel" aria-labelledby="comparison-title">
+      <div class="chart-head"><div><h2 id="comparison-title">Понимание задач</h2>
+        <p>Ответы стажёра и наставника за выбранный период</p></div></div>
+      <div id="comparison-chart"></div>
+      <p class="chart-caption">Вопросы близкие по смыслу, формулировки различаются</p>
+    </section>
+  </div>
+  <div class="additional-charts">
+    <section class="data-panel" aria-labelledby="themes-title">
+      <div class="chart-head"><div><h2 id="themes-title">Темы обратной связи</h2>
+        <p>Подтверждённые цитатами темы за выбранный период</p></div></div>
+      <div id="themes-chart"></div>
+      <p class="chart-caption">Нажмите на тему, чтобы увидеть стажировки</p>
+    </section>
+    <section class="data-panel" aria-labelledby="departments-title">
+      <div class="chart-head"><div><h2 id="departments-title">Направления и поддержка</h2>
+        <p>Оценка поддержки наставника по ответам стажёров</p></div></div>
+      <div id="departments-chart"></div>
+      <p class="chart-caption">Число ответов указано рядом. Нажмите на направление, чтобы открыть стажировки</p>
+    </section>
+  </div>
+  <section class="queue" aria-labelledby="queue-title">
+    <div class="queue-head"><h2 id="queue-title">Темы в анкетах</h2><p id="queue-meta" aria-live="polite"></p></div>
+    <div class="queue-groups" id="queue-list"></div>
+  </section>
+  <section class="ranking-section" aria-labelledby="ranking-title">
+    <div class="queue-head"><div><h2 id="ranking-title">Все стажёры</h2>
+      <p id="ranking-summary">Оценки наставников за выбранный период</p></div></div>
+    <div class="rank-legend" aria-label="Группы перцентилей">
+      <span class="rank-key rank-5">90–100</span><span class="rank-key rank-4">70–90</span>
+      <span class="rank-key rank-3">50–70</span><span class="rank-key rank-2">20–50</span>
+      <span class="rank-key rank-1">0–20</span>
+    </div>
+    <p class="rank-note" id="ranking-explanation"></p>
+    <div class="ranking-scroll"><table class="ranking-table">
+      <thead id="ranking-head"></thead><tbody id="ranking-body"></tbody>
+    </table></div>
+  </section>
+</main>
+<dialog id="drawer" aria-labelledby="case-title">
+  <header class="drawer-head">
+    <div><p class="meta" id="case-meta"></p><h2 id="case-title"></h2></div>
+    <button type="button" class="close" id="close-case" aria-label="Закрыть карточку" autofocus>×</button>
+  </header>
+  <div class="drawer-content" id="case-content"></div>
+</dialog>
+
+<script>
+(() => {
+  'use strict';
+
+  const metrics = [
+    'Понимание задач', 'Качество работы', 'Самостоятельность',
+    'Соблюдение сроков', 'Инициативность', 'Работа с командой'
+  ];
+  const organizerPopulation = [
+    {
+      id: "СТ-001",
+      name: "СТ-001",
+      mentor: [[4, 4, 3, 4, 4, 4], [4, 4, 4, 4, 4, 4], [5, 4, 4, 5, 5, 4], [5, 5, 4, 5, 5, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5]],
+      intern: [[4, 4, 3, 5, 4, 4, 4], [4, 4, 4, 5, 4, 4, 4], [5, 4, 4, 5, 5, 4, 5], [5, 5, 4, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5]],
+      texts: [
+        {"mentor": ["Хорошо понимает задачи и качественно их выполняет. Пока нужна помощь с планированием.", "Стоит развивать самостоятельное планирование работы."], "intern": ["Сложно распределять время между несколькими задачами.", "Нужно быстрее получать обратную связь по промежуточным результатам."]},
+        {"mentor": ["Стало лучше с планированием, по новым задачам задает нужные вопросы.", "Критичных сложностей нет."], "intern": ["По новым задачам иногда не сразу понятны приоритеты.", "Иногда не хватает короткой сверки с наставником по новым задачам."]},
+        {"mentor": ["Хорошо справляется с задачами и проявляет инициативу.", "По сложным задачам пока требуется поддержка наставника."], "intern": ["Сложности возникают только на новых технических задачах.", "Нужна помощь наставника по отдельным сложным вопросам."]},
+        {"mentor": ["Стабильно выполняет задачи качественно и в срок.", "Можно постепенно увеличивать самостоятельность."], "intern": ["Серьезных сложностей нет.", "Хотелось бы больше задач повышенной сложности."]},
+        {"mentor": ["Работает самостоятельно, качественно и в срок.", "Сложностей, требующих внимания, нет."], "intern": ["Сложностей за период не было.", "Ничего не мешает работать и развиваться."]},
+        {"mentor": ["Показывает стабильный высокий результат по всем критериям.", "Сложностей, требующих внимания, нет."], "intern": ["Сложностей за период не было.", "Ничего не мешает работать и развиваться."]},
+      ],
+      ai: [
+        {"topic": "планирование времени", "answer": {"s": {"status": "issue", "quotes": ["Сложно распределять время между несколькими задачами."]}, "n": {"status": "issue", "quotes": ["Пока нужна помощь с планированием.", "Стоит развивать самостоятельное планирование работы."]}}},
+        {"topic": "планирование работы", "answer": {"s": {"status": "issue", "quotes": ["По новым задачам иногда не сразу понятны приоритеты.", "Иногда не хватает короткой сверки с наставником по новым задачам."]}, "n": {"status": "better", "quotes": ["Стало лучше с планированием, по новым задачам задает нужные вопросы."]}}},
+        {"topic": "поддержка по сложным задачам", "answer": {"s": {"status": "issue", "quotes": ["Нужна помощь наставника по отдельным сложным вопросам.", "Сложности возникают только на новых технических задачах."]}, "n": {"status": "issue", "quotes": ["По сложным задачам пока требуется поддержка наставника."]}}},
+        {"topic": "более сложные задачи", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы больше задач повышенной сложности."]}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "текущие трудности", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "текущие трудности", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "none", "quotes": []}}},
+      ],
+    },
+    {
+      id: "СТ-002",
+      name: "СТ-002",
+      mentor: [[5, 4, 4, 5, 5, 5], [5, 5, 4, 5, 5, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 4, 5, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5]],
+      intern: [[5, 5, 4, 5, 4, 5, 5], [5, 5, 4, 5, 4, 5, 5], [5, 5, 5, 5, 5, 5, 5], [5, 5, 4, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5]],
+      texts: [
+        {"mentor": ["Быстро включился в работу, активен и хорошо взаимодействует с командой.", "Можно давать больше самостоятельных задач."], "intern": ["Потребовалось время, чтобы разобраться во внутренних процессах.", "Хотелось бы больше самостоятельных задач."]},
+        {"mentor": ["Качественно выполняет задачи и проявляет инициативу.", "Критичных сложностей нет."], "intern": ["Существенных сложностей нет.", "Хотелось бы чаще участвовать во встречах команды."]},
+        {"mentor": ["Полностью самостоятельно ведет текущие задачи.", "Можно подключать к более сложным задачам."], "intern": ["Сложностей за период не было.", "Хотелось бы больше задач, где можно самостоятельно принимать решения."]},
+        {"mentor": ["Сохраняет высокое качество при высокой загрузке.", "Стоит следить за нагрузкой в пиковые периоды."], "intern": ["В отдельные дни было много параллельных задач.", "Иногда нагрузка выше комфортной."]},
+        {"mentor": ["Стабильно показывает высокий результат.", "Сложностей, требующих внимания, нет."], "intern": ["Сложностей за период не было.", "Ничего не мешает работать и развиваться."]},
+        {"mentor": ["Готов самостоятельно вести более ответственные задачи.", "Сложностей, требующих внимания, нет."], "intern": ["Сложностей за период не было.", "Хотелось бы больше ответственных задач."]},
+      ],
+      ai: [
+        {"topic": "больше самостоятельных задач", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы больше самостоятельных задач."]}, "n": {"status": "growth", "quotes": ["Можно давать больше самостоятельных задач."]}}},
+        {"topic": "участие во встречах команды", "answer": {"s": {"status": "issue", "quotes": ["Хотелось бы чаще участвовать во встречах команды."]}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "более самостоятельные или сложные задачи", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы больше задач, где можно самостоятельно принимать решения."]}, "n": {"status": "growth", "quotes": ["Можно подключать к более сложным задачам."]}}},
+        {"topic": "высокая нагрузка", "answer": {"s": {"status": "issue", "quotes": ["В отдельные дни было много параллельных задач.", "Иногда нагрузка выше комфортной."]}, "n": {"status": "issue", "quotes": ["Стоит следить за нагрузкой в пиковые периоды."]}}},
+        {"topic": "текущие трудности", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "более ответственные задачи", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы больше ответственных задач."]}, "n": {"status": "growth", "quotes": ["Готов самостоятельно вести более ответственные задачи."]}}},
+      ],
+    },
+    {
+      id: "СТ-003",
+      name: "СТ-003",
+      mentor: [[3, 4, 3, 4, 3, 4], [3, 3, 3, 3, 3, 4], [3, 3, 2, 3, 3, 4], [4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 5], [5, 4, 5, 5, 5, 5]],
+      intern: [[3, 3, 4, 3, 3, 4, 3], [3, 2, 4, 3, 3, 4, 3], [2, 2, 3, 3, 3, 4, 2], [4, 4, 4, 4, 4, 4, 4], [4, 4, 4, 4, 4, 5, 4], [5, 4, 5, 4, 5, 5, 5]],
+      texts: [
+        {"mentor": ["Задачи выполняет аккуратно, но по новым задачам часто нужны уточнения.", "Нужно точнее формулировать задачи и чаще давать обратную связь."], "intern": ["По новым задачам не всегда понятен ожидаемый результат.", "Не хватает регулярной обратной связи по выполненным задачам."]},
+        {"mentor": ["Из-за повторных уточнений снизился темп выполнения задач.", "Нужны регулярные короткие сверки по задачам."], "intern": ["Часто приходится повторно уточнять требования по задачам.", "Не хватает регулярной связи с наставником."]},
+        {"mentor": ["Самостоятельность снизилась, по ряду задач требовались дополнительные пояснения.", "Нужно улучшить постановку задач и регулярность обратной связи."], "intern": ["Часть задач пришлось переделывать из-за непонятной постановки.", "Мешают неясные задачи и редкая обратная связь."]},
+        {"mentor": ["После регулярных встреч стал лучше понимать задачи и работать увереннее.", "Ситуация улучшилась, критичных сложностей нет."], "intern": ["После регулярных встреч задачи стали понятнее.", "Существенных сложностей сейчас нет."]},
+        {"mentor": ["Стабильно выполняет задачи, взаимодействие с командой хорошее.", "Можно сохранять текущий формат работы."], "intern": ["По новым задачам иногда нужны дополнительные уточнения.", "Иногда требуется быстрее согласовывать приоритеты."]},
+        {"mentor": ["Заметно выросла самостоятельность и уверенность в работе.", "Сложностей, требующих внимания, нет."], "intern": ["Серьезных сложностей нет.", "Ничего существенно не мешает работе."]},
+      ],
+      ai: [
+        {"topic": "ясность постановки задач", "answer": {"s": {"status": "issue", "quotes": ["По новым задачам не всегда понятен ожидаемый результат."]}, "n": {"status": "issue", "quotes": ["по новым задачам часто нужны уточнения.", "Нужно точнее формулировать задачи и чаще давать обратную связь."]}}},
+        {"topic": "повторные уточнения требований", "answer": {"s": {"status": "issue", "quotes": ["Часто приходится повторно уточнять требования по задачам."]}, "n": {"status": "issue", "quotes": ["Из-за повторных уточнений снизился темп выполнения задач.", "Нужны регулярные короткие сверки по задачам."]}}},
+        {"topic": "ясность постановки задач", "answer": {"s": {"status": "issue", "quotes": ["Часть задач пришлось переделывать из-за непонятной постановки.", "Мешают неясные задачи и редкая обратная связь."]}, "n": {"status": "issue", "quotes": ["Нужно улучшить постановку задач и регулярность обратной связи.", "по ряду задач требовались дополнительные пояснения."]}}},
+        {"topic": "понимание задач после встреч", "answer": {"s": {"status": "better", "quotes": ["После регулярных встреч задачи стали понятнее."]}, "n": {"status": "better", "quotes": ["После регулярных встреч стал лучше понимать задачи и работать увереннее."]}}},
+        {"topic": "необходимость уточнять задачи", "answer": {"s": {"status": "issue", "quotes": ["По новым задачам иногда нужны дополнительные уточнения."]}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "самостоятельность", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "better", "quotes": ["Заметно выросла самостоятельность и уверенность в работе."]}}},
+      ],
+    },
+    {
+      id: "СТ-004",
+      name: "СТ-004",
+      mentor: [[4, 5, 5, 5, 4, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 4, 5, 5], [5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5]],
+      intern: [[4, 5, 5, 4, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5], [5, 5, 4, 5, 5, 5, 5], [5, 5, 2, 5, 5, 5, 4], [5, 5, 4, 5, 5, 5, 5], [5, 5, 5, 5, 5, 5, 5]],
+      texts: [
+        {"mentor": ["Работает самостоятельно, качественно и хорошо взаимодействует с командой.", "Можно подключать к большему числу аналитических задач."], "intern": ["Потребовалось время на освоение внутренних систем.", "Хотелось бы больше аналитических задач."]},
+        {"mentor": ["Показывает высокий результат по всем критериям.", "Сложностей, требующих внимания, нет."], "intern": ["Сложностей за период не было.", "Ничего не мешает работать и развиваться."]},
+        {"mentor": ["Хорошо справляется с увеличившимся количеством задач.", "Стоит продолжать следить за нагрузкой."], "intern": ["Стало больше параллельных задач.", "Нужно внимательнее планировать загрузку."]},
+        {"mentor": ["Качество работы осталось высоким, но из-за нагрузки часть сроков пришлось перенести.", "Нужно снизить нагрузку; других проблем нет."], "intern": ["Нагрузка была слишком высокой из-за нескольких проектов одновременно.", "Основная сложность — высокая нагрузка; по задачам и взаимодействию проблем нет."]},
+        {"mentor": ["После снижения нагрузки снова работает в стабильном темпе.", "Сложностей, требующих внимания, нет."], "intern": ["Нагрузка вернулась к комфортному уровню.", "Существенных сложностей нет."]},
+        {"mentor": ["Стабильно показывает высокий результат и проявляет инициативу.", "Можно развивать в сторону более сложных аналитических задач."], "intern": ["Сложностей за период не было.", "Хотелось бы продолжать развиваться в аналитических задачах."]},
+      ],
+      ai: [
+        {"topic": "больше аналитических задач", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы больше аналитических задач."]}, "n": {"status": "growth", "quotes": ["Можно подключать к большему числу аналитических задач."]}}},
+        {"topic": "текущие трудности", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "нагрузка и параллельные задачи", "answer": {"s": {"status": "issue", "quotes": ["Стало больше параллельных задач.", "Нужно внимательнее планировать загрузку."]}, "n": {"status": "issue", "quotes": ["Стоит продолжать следить за нагрузкой.", "Хорошо справляется с увеличившимся количеством задач."]}}},
+        {"topic": "высокая нагрузка", "answer": {"s": {"status": "issue", "quotes": ["Нагрузка была слишком высокой из-за нескольких проектов одновременно.", "Основная сложность — высокая нагрузка"]}, "n": {"status": "issue", "quotes": ["Нужно снизить нагрузку", "из-за нагрузки часть сроков пришлось перенести."]}}},
+        {"topic": "нагрузка", "answer": {"s": {"status": "better", "quotes": ["Нагрузка вернулась к комфортному уровню."]}, "n": {"status": "better", "quotes": ["После снижения нагрузки снова работает в стабильном темпе."]}}},
+        {"topic": "более сложные аналитические задачи", "answer": {"s": {"status": "growth", "quotes": ["Хотелось бы продолжать развиваться в аналитических задачах."]}, "n": {"status": "growth", "quotes": ["Можно развивать в сторону более сложных аналитических задач."]}}},
+      ],
+    },
+    {
+      id: "СТ-005",
+      name: "СТ-005",
+      mentor: [[4, 4, 2, 3, 5, 3], [4, 4, 2, 3, 5, 3], [4, 4, 3, 3, 5, 3], [4, 4, 4, 4, 5, 4], [5, 5, 4, 5, 5, 5], [5, 5, 5, 5, 5, 5]],
+      intern: [[2, 2, 4, 5, 5, 3, 3], [2, 2, 3, 5, 5, 3, 3], [3, 2, 3, 5, 5, 3, 3], [4, 4, 4, 5, 5, 4, 4], [4, 4, 4, 5, 5, 5, 5], [5, 5, 4, 5, 5, 5, 5]],
+      texts: [
+        {"mentor": ["Технически сильный и вовлеченный, но пока часто нуждается в помощи по организации работы.", "Нужно чаще обсуждать сложные вопросы и своевременно просить помощь."], "intern": ["Не всегда понятны приоритеты по задачам.", "Не хватает регулярной обратной связи от наставника."]},
+        {"mentor": ["Качество работы хорошее, но часть задач задерживается из-за поздних уточнений.", "Нужна более регулярная связь с наставником."], "intern": ["Некоторые задачи задерживаются, потому что долго жду уточнений.", "Не хватает возможности быстро задать вопрос наставнику."]},
+        {"mentor": ["Самостоятельность немного выросла, но по сложным задачам все еще нужна поддержка.", "Стоит ввести регулярные короткие встречи."], "intern": ["Задачи стали понятнее, но обратной связи все еще недостаточно.", "Хотелось бы регулярных коротких встреч с наставником."]},
+        {"mentor": ["После регулярных встреч стал быстрее решать сложные вопросы и лучше соблюдать сроки.", "Ситуация улучшается, текущий формат стоит сохранить."], "intern": ["После регулярных встреч стало проще решать сложные вопросы.", "Иногда все еще приходится ждать ответа по сложным задачам."]},
+        {"mentor": ["Хорошо справляется с задачами и своевременно сообщает о сложностях.", "Критичных сложностей нет."], "intern": ["Сложности возникают только по новым техническим задачам.", "Существенных препятствий нет."]},
+        {"mentor": ["Показывает стабильный высокий результат и работает самостоятельно.", "Сложностей, требующих внимания, нет."], "intern": ["Серьезных сложностей нет.", "Ничего не мешает работать и развиваться."]},
+      ],
+      ai: [
+        {"topic": "поддержка и связь с наставником", "answer": {"s": {"status": "issue", "quotes": ["Не хватает регулярной обратной связи от наставника."]}, "n": {"status": "issue", "quotes": ["Нужно чаще обсуждать сложные вопросы и своевременно просить помощь.", "пока часто нуждается в помощи по организации работы"]}}},
+        {"topic": "поздние уточнения задач", "answer": {"s": {"status": "issue", "quotes": ["Некоторые задачи задерживаются, потому что долго жду уточнений.", "Не хватает возможности быстро задать вопрос наставнику."]}, "n": {"status": "issue", "quotes": ["Качество работы хорошее, но часть задач задерживается из-за поздних уточнений."]}}},
+        {"topic": "поддержка по сложным вопросам", "answer": {"s": {"status": "issue", "quotes": ["Задачи стали понятнее, но обратной связи все еще недостаточно.", "Хотелось бы регулярных коротких встреч с наставником."]}, "n": {"status": "issue", "quotes": ["Самостоятельность немного выросла, но по сложным задачам все еще нужна поддержка.", "Стоит ввести регулярные короткие встречи."]}}},
+        {"topic": "решение сложных вопросов и ожидание ответа", "answer": {"s": {"status": "mixed", "quotes": ["После регулярных встреч стало проще решать сложные вопросы.", "Иногда все еще приходится ждать ответа по сложным задачам."]}, "n": {"status": "better", "quotes": ["После регулярных встреч стал быстрее решать сложные вопросы и лучше соблюдать сроки.", "Ситуация улучшается, текущий формат стоит сохранить."]}}},
+        {"topic": "трудности в новых технических задачах", "answer": {"s": {"status": "issue", "quotes": ["Сложности возникают только по новым техническим задачам."]}, "n": {"status": "none", "quotes": []}}},
+        {"topic": "текущие трудности", "answer": {"s": {"status": "none", "quotes": []}, "n": {"status": "none", "quotes": []}}},
+      ],
+    },
+  ];
+  const relativeGap = .75;
+  const threshold = 4.5;
+
+  const get = (id) => document.getElementById(id);
+  // Детерминированная синтетическая выборка, чтобы все увидели одинаковое демо.
+  const demoDepartments = ['Технический блок', 'Коммерческий блок', 'Административный блок', 'HR-блок', 'IT'];
+  const demoPopulation = Array.from({length: 50}, (_, index) => {
+    const id = 'ДЕМО-' + String(index + 1).padStart(3, '0');
+    const clamp = value => Math.max(1, Math.min(5, value));
+    const mentor = Array.from({length: 6}, (_, month) => Array.from({length: 6}, (_, metric) =>
+      clamp(2 + ((index * 7 + metric * 3 + Math.floor(index / 5)) % 4) +
+        (month >= 3 && (index + metric) % 3 === 0 ? 1 : 0))
+    ));
+    const intern = Array.from({length: 6}, (_, month) => Array.from({length: 7}, (_, metric) =>
+      clamp(2 + ((index * 3 + metric * 5 + Math.floor(index / 7)) % 4) +
+        (month >= 3 && (index + metric) % 4 === 0 ? 1 : 0))
+    ));
+    return {id, name: id, mentor, intern, texts: Array.from({length: 6}, () => ({
+      mentor: ['Демонстрационный профиль без текстового ответа.'],
+      intern: ['Демонстрационный профиль без текстового ответа.']
+    })), ai: Array(6).fill(null), department: demoDepartments[index % demoDepartments.length],
+      startMonth: index % 5};
+  });
+  let dataset = 'organizers';
+  const population = () => dataset === 'organizers' ? organizerPopulation : demoPopulation;
+  const startMonth = person => dataset === 'organizers' ? demoStartMonths[person.id] : person.startMonth;
+  let sortMetric = 'average';
+  let sortDirection = 'desc';
+
+  const calendarMonths = ['Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь'];
+  const demoStartMonths = {'СТ-001': 0, 'СТ-002': 1, 'СТ-003': 2, 'СТ-004': 3, 'СТ-005': 4};
+  let mode = 'calendar';
+  let selectedMonth = 5;
+  const drawer = get('drawer');
+  const metricButtons = Array.from(document.querySelectorAll('[data-metric]'));
+  let selectedMetric = 'all';
+  let expandedInsight = null;
+  let selectedHistoryMetric = 2;
+  const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
+  function median(values) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : mean([sorted[middle - 1], sorted[middle]]);
+  }
+  const shortNumber = new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 2 });
+  const scoreNumber = new Intl.NumberFormat('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  const score = (value) => scoreNumber.format(value);
+
+  let rule = 'relative';
+  let view;
+  let returnFocus;
+  let openedPersonId;
+
+  function buildView() {
+    const period = selectedMonth;
+    const group = population().filter(person => mode === 'stage' || startMonth(person) <= period);
+    const records = group.map(person => {
+      const personalPeriod = mode === 'stage' ? period : Math.min(period - startMonth(person), 5);
+      return {...person, personalPeriod, scores: person.mentor[personalPeriod],
+        average: mean(person.mentor[personalPeriod])};
+    }).sort((a, b) => a.average - b.average || a.id.localeCompare(b.id));
+    return {period, group, records, baseline: median(records.map(record => record.average))};
+  }
+
+
+  const trackedMetrics = [
+    {label: 'Понятность задач', color: '#1669b6', dash: ''},
+    {label: 'Поддержка наставника', color: '#9155b4', dash: '8 4'},
+    {label: 'Комфортность нагрузки', color: '#dc7453', dash: '2 4'}
+  ];
+
+  function plotTrend() {
+    const {period, group} = view;
+    const x = month => 56 + month * 104;
+    const y = value => 20 + (5 - value) * 57;
+    const axes = [1, 2, 3, 4, 5].map(value =>
+      '<line x1="56" x2="576" y1="' + y(value) + '" y2="' + y(value) +
+      '" stroke="#e0eaf3"/><text x="40" y="' + (y(value) + 5) +
+      '" text-anchor="end">' + value + '</text>').join('');
+    const paths = trackedMetrics.map((metric, index) => {
+      if (selectedMetric !== 'all' && Number(selectedMetric) !== index) return '';
+      const values = Array.from({length: 6}, (_, month) => {
+        const responses = month > period ? [] : population().filter(person => mode === 'stage' || (startMonth(person) <= month && month - startMonth(person) < 6))
+          .map(person => person.intern[mode === 'stage' ? month : month - startMonth(person)][index]);
+        return {value: responses.length ? mean(responses) : null, count: responses.length};
+      });
+      const path = values.map((entry, month) => entry.value === null ? '' :
+        (month === 0 || values[month - 1].value === null ? 'M' : 'L') + x(month) + ' ' + y(entry.value)).join(' ');
+      const marks = values.map((entry, month) => entry.value === null ? '' : '<circle cx="' + x(month) + '" cy="' + y(entry.value) +
+        '" r="' + (month === period ? 6 : 4) + '" fill="' + metric.color + '" stroke="white" stroke-width="2"><title>' +
+        metric.label + ', ' + (mode === 'calendar' ? calendarMonths[month] : 'месяц ' + (month + 1)) + ': ' + score(entry.value) + ' из 5, ответов ' + entry.count + '</title></circle>').join('');
+      return '<path d="' + path + '" fill="none" stroke="' + metric.color + '" stroke-width="3" stroke-dasharray="' +
+        metric.dash + '" stroke-linejoin="round" stroke-linecap="round"/>' + marks;
+    }).join('');
+    const countLabels = Array.from({length: 6}, (_, month) => {
+      const count = month > period ? 0 : population().filter(person => mode === 'stage' ||
+        (startMonth(person) <= month && month - startMonth(person) < 6)).length;
+      return '<text x="' + x(month) + '" y="257" text-anchor="middle" font-size="11">n=' + count + '</text>';
+    }).join('');
+    const labels = Array.from({length: 6}, (_, month) => '<text x="' + x(month) + '" y="275" text-anchor="middle"' +
+      (month === period ? ' font-weight="700" fill="#132e51"' : '') + '>' + (mode === 'calendar' ? calendarMonths[month].slice(0,3) : month + 1) + '</text>').join('');
+    const description = trackedMetrics.map((metric, index) => metric.label + ': ' +
+      score(mean(view.records.map(person => person.intern[person.personalPeriod][index])))).join(', ');
+    get('primary-chart').innerHTML = '<svg viewBox="0 0 605 285" role="img" aria-label="' + (mode === 'calendar' ? calendarMonths[period] : 'Месяц ' + (period + 1)) +
+      '. Средние оценки стажёров: ' + description + ' из пяти.">' +
+      '<rect x="' + (x(period) - 15) + '" y="10" width="30" height="240" rx="6" fill="#edf5fd"/>' +
+      '<g fill="#536b86" font-size="14">' + axes + labels + countLabels + '</g>' + paths + '</svg>';
+    get('coverage').textContent = (mode === 'calendar' ? calendarMonths[period] + ' 2026' : 'Месяц ' + (period + 1)) + ' · Ответили стажёры ' + group.length + '/' + group.length +
+      ' · Наставники ' + group.length + '/' + group.length + ' · Полные пары ' + group.length + '/' + group.length;
+  }
+
+  function plotInsights() {
+    const {period, records} = view;
+    get('insight-period').textContent = (mode === 'calendar' ? calendarMonths[period] + ' 2026' : 'Месяц ' + (period + 1)) + ' · оценки 1–2 требуют проверки';
+    const numeric = trackedMetrics.map((metric, index) => {
+      const people = records.filter(person => person.intern[person.personalPeriod][index] <= 2);
+      const expanded = expandedInsight === String(index);
+      return '<button class="insight-toggle" type="button" data-insight="' + index + '" aria-expanded="' + expanded +
+        '"><span>' + metric.label + '</span><strong>' + people.length + ' из ' + records.length + '</strong></button>' +
+        (expanded ? '<div class="insight-list">' + (people.length ? people.map(person =>
+          '<button class="insight-person" type="button" data-person="' + person.id + '">' + person.id +
+          ' · ' + person.intern[person.personalPeriod][index] + ' из 5</button>').join('') :
+          '<span class="insight-empty">Низких оценок в этом месяце нет.</span>') + '</div>' : '');
+    }).join('');
+    const textSignals = records.filter(person => issueAt(person, person.personalPeriod).kind === 'issue');
+    const signals = textSignals.length ? textSignals.map(person => '<button class="insight-person" type="button" data-person="' +
+      person.id + '">' + person.id + ' · ' + escapeText(issueAt(person, person.personalPeriod).topic) + '</button>').join('') :
+      '<span class="insight-empty">' + (dataset === 'demo' ? 'ИИ-разбор синтетической выборки не проводился.' : 'В сохранённых разборах трудности не выделены.') + '</span>';
+    get('insights').innerHTML = '<section class="insight-section"><h3>Низкие оценки стажёров</h3>' + numeric +
+      '</section><section class="insight-section"><h3>Темы в ответах · Haiku</h3><div class="insight-list">' +
+      signals + '</div><p class="insight-empty">Разбор сохранён по заданным темам.</p></section>';
+  }
+
+
+  let expandedDistribution = null;
+  let showAllComparisons = false;
+
+  function plotAdditionalCharts() {
+    const {period, records} = view;
+    const rows = trackedMetrics.map((metric, index) => {
+      const segments = [1, 2, 3, 4, 5].map(value => {
+        const people = records.filter(person => person.intern[person.personalPeriod][index] === value);
+        if (!people.length) return '';
+        const key = index + ':' + value;
+        return '<button type="button" data-distribution="' + key + '" data-value="' + value +
+          '" aria-expanded="' + (expandedDistribution === key) + '" style="flex:' + people.length +
+          '" aria-label="' + metric.label + ', оценка ' + value + ', стажёров ' + people.length +
+          '"> ' + value + ' · ' + people.length + '</button>';
+      }).join('');
+      const [selectedIndex, selectedValue] = (expandedDistribution ?? '').split(':').map(Number);
+      const selected = expandedDistribution !== null && selectedIndex === index
+        ? records.filter(person => person.intern[person.personalPeriod][index] === selectedValue) : [];
+      return '<div class="distribution-row"><h3>' + metric.label + '</h3><div class="distribution-bars">' +
+        segments + '</div><div class="distribution-values">' + selected.map(person =>
+        '<button type="button" data-person="' + person.id + '">' + person.id + '</button>').join('') + '</div></div>';
+    }).join('');
+    get('score-distribution').innerHTML = '<div class="distribution-legend"><span><i class="low"></i> 1–2</span>' +
+      '<span><i></i> 3</span><span><i class="high"></i> 4–5</span><span>Оценка · число стажёров</span></div>' + rows;
+    const position = value => (value - 1) * 25;
+    const sortedRecords = records.slice().sort((a, b) => a.id.localeCompare(b.id));
+    const visibleRecords = showAllComparisons ? sortedRecords : sortedRecords.slice(0, 8);
+    const comparison = visibleRecords.map(person => {
+      const intern = person.intern[person.personalPeriod][0];
+      const mentor = person.mentor[person.personalPeriod][0];
+      const left = Math.min(position(intern), position(mentor));
+      const width = Math.abs(position(intern) - position(mentor));
+      return '<button class="comparison-row" type="button" data-person="' + person.id +
+        '" aria-label="' + person.id + ': стажёр ' + intern + ', наставник ' + mentor + ' из 5">' +
+        '<strong>' + person.id + '</strong><span class="comparison-axis"><i class="comparison-connector" style="left:' + left +
+        '%;width:' + width + '%"></i><i class="comparison-point" style="left:' + position(intern) +
+        '%"></i><i class="comparison-point mentor" style="left:' + position(mentor) + '%"></i></span>' +
+        '<span class="comparison-values">' + intern + ' / ' + mentor + '</span></button>';
+    }).join('');
+    get('comparison-chart').innerHTML = '<div class="comparison-legend"><span><i></i> Стажёр</span>' +
+      '<span><i class="mentor"></i> Наставник</span></div>' + comparison +
+      '<div class="comparison-ticks" aria-hidden="true"><span></span><div><span>1</span><span>2</span>' +
+      '<span>3</span><span>4</span><span>5</span></div><span></span></div>' +
+      (records.length > 8 ? '<button class="comparison-more" type="button" data-show-comparisons>' +
+        (showAllComparisons ? 'Свернуть' : 'Показать все · ' + records.length) + '</button>' : '');
+  }
+
+  function caseHistory(record, period) {
+    const history = record.mentor.slice(0, period + 1).map(values => values[selectedHistoryMetric]);
+    const x = (index) => 85 + index * 63;
+    const y = (value) => 15 + (5 - value) * 21;
+    const line = history.map((value, index) => (index ? 'L' : 'M') + x(index) + ' ' + y(value)).join(' ');
+    const labels = history.map((value, index) => '<circle cx="' + x(index) + '" cy="' + y(value) + '" r="' +
+      (index === period ? 5 : 3.5) + '" fill="' + (index === period ? '#b14930' : '#1669b6') + '"/>' +
+      '<text x="' + x(index) + '" y="' + (y(value) - 8) + '" text-anchor="middle">' + score(value) + '</text>' +
+      '<text x="' + x(index) + '" y="118" text-anchor="middle">' + (index + 1) + '</text>').join('');
+    return '<section class="drawer-block case-history"><h3>Динамика оценки наставника</h3>' +
+      '<label>Критерий<select class="case-select" id="history-metric">' + metrics.map((metric, index) =>
+      '<option value="' + index + '"' + (index === selectedHistoryMetric ? ' selected' : '') + '>' + metric + '</option>').join('') + '</select></label>' +
+      '<svg viewBox="0 0 440 127" role="img" aria-label="' + history.map((value, index) => 'Месяц ' + (index + 1) + ', ' + score(value)).join('; ') +
+      '"><path d="M85 99H400 M85 57H400 M85 15H400" fill="none" stroke="#dce7f2"/>' +
+      '<g fill="#4e6481" font-size="12"><text x="68" y="103" text-anchor="end">1</text><text x="68" y="61" text-anchor="end">3</text>' +
+      '<text x="68" y="19" text-anchor="end">5</text><text x="68" y="118" text-anchor="end">Месяц</text></g>' +
+      '<path d="' + line + '" fill="none" stroke="#1669b6" stroke-width="2"/><g fill="#4e6481" font-size="12">' + labels + '</g></svg></section>';
+  }
+
+  function escapeText(value) {
+    return String(value).replace(/[&<>"']/g, character => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[character]);
+  }
+
+  const roleNames = {s: 'Стажёр', n: 'Наставник'};
+  const statusLabels = {
+    issue: 'Отмечена трудность', better: 'Отмечено улучшение',
+    mixed: 'Есть улучшение и трудность', growth: 'Пожелание или предложение',
+    none: 'Тема не отмечена'
+  };
+  const topicGroups = {
+    'СТ-003': ['ясность задач', 'ясность задач', 'ясность задач', 'ясность задач', 'ясность задач'],
+    'СТ-004': [null, null, 'нагрузка', 'нагрузка', 'нагрузка'],
+    'СТ-005': ['связь с наставником', 'связь с наставником', 'связь с наставником', 'связь с наставником']
+  };
+  const conversationQuestions = {
+    'ясность задач': 'Как сейчас уточняете ожидаемый результат, когда появляется новая задача?',
+    'нагрузка': 'Какие задачи сейчас идут одновременно и как вы решаете, что можно перенести?',
+    'высокая нагрузка': 'Какие задачи сейчас идут одновременно и как вы решаете, что можно перенести?',
+    'связь с наставником': 'Как сейчас договорено получать ответ, если без уточнения задача останавливается?',
+    'участие во встречах команды': 'На какие встречи команды было бы полезно приглашать стажёра чаще?'
+  };
+  const reviewedLabels = { 'СТ-002:1': {s: 'growth'} };
+  const sessionNotes = new Map();
+
+  function issueAt(record, period) {
+    const result = record.ai[period];
+    if (!result) return {topic: '', group: '', kind: 'unavailable', roles: []};
+    const validRoles = Object.entries(result.answer).map(([role, item]) => {
+      const source = record.texts[period][role === 's' ? 'intern' : 'mentor'];
+      const quotes = item.quotes.filter(quote => source.some(text => text.includes(quote)));
+      const status = quotes.length ? reviewedLabels[record.id + ':' + period]?.[role] ?? item.status : 'none';
+      return {role, status, quotes};
+    });
+    const statuses = validRoles.map(item => item.status);
+    const kind = statuses.some(status => status === 'issue' || status === 'mixed') ? 'issue'
+      : statuses.includes('growth') ? 'growth' : statuses.includes('better') ? 'better' : 'none';
+    const topic = result.topic;
+    const group = topicGroups[record.id]?.[period] ?? topic;
+    return {topic, group, kind, roles: validRoles};
+  }
+
+  function reviewKey(record, period, signal) {
+    return 'mgts/dashboard/review/' + JSON.stringify([record.id, period, signal.group]);
+  }
+
+  function readReview(record, period, signal) {
+    const key = reviewKey(record, period, signal);
+    if (sessionNotes.has(key)) return sessionNotes.get(key);
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+
+  function previousDiscussion(record, period, signal) {
+    if (signal.kind !== 'issue') return null;
+    for (let month = period - 1; month >= 0; month--) {
+      const earlier = issueAt(record, month);
+      if (earlier.kind !== 'issue' || earlier.group !== signal.group) continue;
+      const note = readReview(record, month, earlier);
+      if (note) return {month, note};
+    }
+    return null;
+  }
+
+
+  const departments = {
+    'СТ-001': 'Технический блок', 'СТ-002': 'Коммерческий блок',
+    'СТ-003': 'Административный блок', 'СТ-004': 'HR-блок', 'СТ-005': 'IT'
+  };
+  const groupedTopics = {
+    'понимание задач после встреч': 'Понятность задач',
+    'нагрузка': 'Нагрузка',
+    'планирование времени': 'Планирование задач',
+    'планирование работы': 'Планирование задач',
+    'ясность постановки задач': 'Понятность задач',
+    'повторные уточнения требований': 'Понятность задач',
+    'необходимость уточнять задачи': 'Понятность задач',
+    'поддержка и связь с наставником': 'Поддержка и обратная связь',
+    'поздние уточнения задач': 'Поддержка и обратная связь',
+    'поддержка по сложным вопросам': 'Поддержка и обратная связь',
+    'поддержка по сложным задачам': 'Поддержка и обратная связь',
+    'решение сложных вопросов и ожидание ответа': 'Поддержка и обратная связь',
+    'высокая нагрузка': 'Нагрузка',
+    'нагрузка и параллельные задачи': 'Нагрузка'
+  };
+  let expandedTopic = null;
+  let expandedDepartment = null;
+
+  function plotOverviewCharts() {
+    const {records} = view;
+    const topics = new Map();
+    for (const record of records) {
+      const signal = issueAt(record, record.personalPeriod);
+      if (!['issue', 'growth', 'better'].includes(signal.kind)) continue;
+      const label = groupedTopics[signal.topic] ?? signal.topic;
+      if (!topics.has(label)) topics.set(label, {positive: [], negative: []});
+      const statuses = signal.roles.map(role => role.status);
+      if (statuses.some(status => status === 'issue' || status === 'mixed')) topics.get(label).negative.push(record);
+      if (statuses.some(status => ['better', 'growth', 'mixed'].includes(status))) topics.get(label).positive.push(record);
+    }
+    const orderedTopics = Array.from(topics).sort((a, b) =>
+      (b[1].positive.length + b[1].negative.length) - (a[1].positive.length + a[1].negative.length) ||
+      a[0].localeCompare(b[0], 'ru'));
+    get('themes-chart').innerHTML = orderedTopics.length
+      ? '<div class="topic-legend"><span><i></i>Трудность</span><span><i class="positive"></i>Улучшение или развитие</span><span>Числа — трудности / положительные, возможны оба</span></div><div class="topic-chart">' + orderedTopics.map(([label, groups], index) => {
+        const expanded = expandedTopic === index;
+        const people = Array.from(new Set([...groups.negative, ...groups.positive]));
+        return '<div><button class="topic-row" type="button" data-topic-index="' + index +
+          '" aria-expanded="' + expanded + '"><span>' + escapeText(label) +
+          '</span><span class="topic-bar"><i class="topic-negative" style="width:' +
+          (groups.negative.length / records.length * 50) + '%"></i><i class="topic-positive" style="width:' +
+          (groups.positive.length / records.length * 50) + '%"></i></span><strong>' +
+          groups.negative.length + ' / ' + groups.positive.length + '</strong></button>' +
+          (expanded ? '<div class="topic-people">' + people.map(person =>
+            '<button type="button" data-person="' + person.id + '">' + person.id +
+            (groups.negative.includes(person) && groups.positive.includes(person) ? ' · обе оценки' : groups.negative.includes(person) ? ' · трудность' : ' · положительное') + '</button>').join('') + '</div>' : '') + '</div>';
+      }).join('') + '</div>'
+      : '<p class="insight-empty">' + (dataset === 'demo' ? 'В синтетической выборке нет ИИ-разбора комментариев.' :
+        'В сохранённых разборах за этот период нет выделенных тем.') + '</p>';
+
+    const byDepartment = new Map();
+    for (const record of records) {
+      const name = record.department ?? departments[record.id];
+      if (!byDepartment.has(name)) byDepartment.set(name, []);
+      byDepartment.get(name).push(record);
+    }
+    const groups = Array.from(byDepartment).sort((a, b) => a[0].localeCompare(b[0], 'ru'));
+    get('departments-chart').innerHTML = '<div class="department-chart">' + groups.map(([name, people], index) => {
+      const average = mean(people.map(person => person.intern[person.personalPeriod][1]));
+      const expanded = expandedDepartment === index;
+      return '<div><button class="department-row" type="button" data-department-index="' + index +
+        '" aria-expanded="' + expanded + '"><span>' + escapeText(name) +
+        '</span><span class="department-bar"><i style="width:' + (average / 5 * 100) +
+        '%"></i></span><strong>' + score(average) + ' / 5 · ' + people.length + ' отв.</strong></button>' +
+        (expanded ? '<div class="department-people">' + people.map(person =>
+          '<button type="button" data-person="' + person.id + '">' + person.id + ' · ' +
+          person.intern[person.personalPeriod][1] + ' / 5</button>').join('') + '</div>' : '') + '</div>';
+    }).join('') + '</div>';
+  }
+
+  function plotQueue() {
+    const {records, period} = view;
+    const groups = {issue: [], growth: [], better: [], discussed: []};
+    for (const record of records) {
+      const signal = issueAt(record, record.personalPeriod);
+      if (signal.kind === 'none' || signal.kind === 'unavailable') continue;
+      const reviewed = readReview(record, record.personalPeriod, signal);
+      const repeated = !reviewed && previousDiscussion(record, record.personalPeriod, signal);
+      groups[reviewed ? 'discussed' : signal.kind].push(
+        '<button type="button" class="queue-button" data-person="' + record.id + '"><strong>' +
+        escapeText(record.name) + '</strong><span class="queue-score">' + score(record.average) +
+        ' / 5</span><small>' + escapeText(signal.topic) + '</small>' +
+        (repeated ? '<span class="queue-status queue-meta-issue">Снова упомянуто после обсуждения</span>' : '') + '</button>'
+      );
+    }
+    const labels = {issue: 'К обсуждению', growth: 'Возможности развития', better: 'Улучшения', discussed: 'Обсуждено'};
+    get('queue-meta').textContent = groups.issue.length + ' к обсуждению · ' + groups.discussed.length + ' обсуждено';
+    get('queue-list').innerHTML = Object.entries(groups).filter(([, items]) => items.length).map(([kind, items]) =>
+      '<section class="queue-group" data-kind="' + kind + '"><h3>' + labels[kind] + '</h3>' +
+      '<div class="queue-list">' + items.join('') + '</div></section>'
+    ).join('') || '<p class="empty">' + (dataset === 'demo' ? 'Для синтетической выборки ИИ-разбор не проводился.' : 'В сохранённых разборах за этот месяц нет тем для просмотра.') + '</p>';
+  }
+
+
+  function percentileRank(value, values) {
+    const lower = values.filter(item => item < value).length;
+    const equal = values.filter(item => item === value).length;
+    return 100 * (lower + equal / 2) / values.length;
+  }
+
+  function rankBand(percentile) {
+    if (percentile >= 90) return {style: 'rank-5', label: '90–100'};
+    if (percentile >= 70) return {style: 'rank-4', label: '70–90'};
+    if (percentile >= 50) return {style: 'rank-3', label: '50–70'};
+    if (percentile >= 20) return {style: 'rank-2', label: '20–50'};
+    return {style: 'rank-1', label: '0–20'};
+  }
+
+  function plotRanking() {
+    const records = view.records;
+    const valueFor = record => sortMetric === 'average' ? record.average : record.scores[Number(sortMetric)];
+    const values = records.map(valueFor);
+    const sorted = records.slice().sort((a, b) => {
+      const diff = valueFor(a) - valueFor(b);
+      return (sortDirection === 'asc' ? diff : -diff) || a.id.localeCompare(b.id, 'ru');
+    });
+    const columns = [{key: 'average', label: 'Среднее'}, ...metrics.map((label, index) => ({key: String(index), label}))];
+    get('ranking-summary').textContent = records.length + ' стажёров · оценки наставников за выбранный период';
+    get('ranking-explanation').textContent = 'Цвет и перцентиль рассчитаны относительно текущей выборки по столбцу «' +
+      columns.find(column => column.key === sortMetric).label + '». Равные оценки имеют одинаковый перцентиль.';
+    get('ranking-head').innerHTML = '<tr><th scope="col">Стажёр</th><th scope="col">Направление</th>' +
+      '<th scope="col">Этап</th>' + columns.map(column => '<th scope="col"' +
+      (column.key === sortMetric ? ' aria-sort="' + (sortDirection === 'asc' ? 'ascending' : 'descending') + '"' : '') +
+      '><button type="button" data-sort="' + column.key + '">' + column.label +
+      (column.key === sortMetric ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕') +
+      '</button></th>').join('') + '<th scope="col">Перцентиль</th></tr>';
+    get('ranking-body').innerHTML = sorted.map(record => {
+      const percentile = percentileRank(valueFor(record), values);
+      const band = rankBand(percentile);
+      return '<tr class="' + band.style + '"><td><button type="button" data-person="' + record.id + '">' + record.id +
+        '</button></td><td>' + escapeText(record.department ?? departments[record.id]) + '</td><td>Месяц ' +
+        (record.personalPeriod + 1) + '</td><td>' + score(record.average) + '</td>' +
+        record.scores.map(value => '<td>' + value + '</td>').join('') +
+        '<td><span class="rank-badge ' + band.style + '">' + Math.round(percentile) +
+        ' · ' + band.label + '</span></td></tr>';
+    }).join('');
+  }
+
+  function render() {
+    view = buildView();
+    for (const button of metricButtons) {
+      button.setAttribute('aria-pressed', String(button.dataset.metric === selectedMetric));
+    }
+    document.querySelectorAll('[data-dataset]').forEach(button =>
+      button.setAttribute('aria-pressed', String(button.dataset.dataset === dataset)));
+    get('population-caption').textContent = dataset === 'demo'
+      ? '50 вымышленных стажёров · данные для демонстрации'
+      : '5 стажёров · демонстрация разных дат начала';
+    get('dataset-note').textContent = dataset === 'demo'
+      ? 'Все профили, оценки и даты в этой выборке синтетические. ИИ-разбор отсутствует.'
+      : 'Даты начала и отправки анкет демонстрационные. Оценки и ответы — из материалов организаторов.';
+    document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.view === mode)));
+    const labels = mode === 'calendar' ? calendarMonths : ['Месяц 1','Месяц 2','Месяц 3','Месяц 4','Месяц 5','Месяц 6'];
+    get('period-navigation').className = 'stages calendar-periods';
+    get('period-navigation').innerHTML = labels.map((label, index) =>
+      '<button type="button" data-month="' + index + '" aria-pressed="' + (index === selectedMonth) + '">' + label + '</button>'
+    ).join('');
+    get('chart-description').textContent = mode === 'calendar'
+      ? 'Оценки стажёров по календарному месяцу ответа'
+      : 'Оценки стажёров на одинаковом этапе стажировки';
+    get('chart-axis').textContent = mode === 'calendar' ? 'Календарный месяц · 2026' : 'Месяц стажировки';
+    plotTrend();
+    plotInsights();
+    plotAdditionalCharts();
+    plotOverviewCharts();
+    plotQueue();
+    plotRanking();
+  }
+
+  function renderCase(personId, trigger, savedMessage = '') {
+    const { records, baseline } = view;
+    const record = records.find((candidate) => candidate.id === personId);
+    if (!record) return;
+    const period = record.personalPeriod;
+    returnFocus = trigger;
+    openedPersonId = record.id;
+    get('case-meta').textContent = record.id + ' / Месяц ' + (period + 1) + (mode === 'calendar' ? ' / начало ' + calendarMonths[startMonth(record)].toLowerCase() + ' 2026 / ответ ' + calendarMonths[selectedMonth].toLowerCase() + ' 2026' : '');
+    get('case-title').textContent = record.name;
+
+    const profile = metrics.map((label, index) => {
+      const value = record.scores[index];
+      const groupMedian = median(records.map((entry) => entry.scores[index]));
+      return '<div class="metric' + (groupMedian - value >= 1 ? ' is-signal' : '') + '"><span>' + label +
+        '</span><div class="metric-track" aria-label="Медиана ' + score(groupMedian) + ' из 5" role="img">' +
+        '<div class="metric-bar" style="width:' + value * 20 + '%"></div><i class="metric-reference" style="left:' + groupMedian * 20 +
+        '%"></i></div><strong>' + value + '</strong></div>';
+    }).join('');
+
+
+    const signal = issueAt(record, record.personalPeriod);
+    const previous = previousDiscussion(record, record.personalPeriod, signal);
+    const review = readReview(record, record.personalPeriod, signal);
+    const question = conversationQuestions[signal.group] ?? (signal.kind === 'growth'
+      ? 'Какую задачу или возможность можно обсудить на следующей встрече?'
+      : 'В какой ситуации это проявилось и что стоит попробовать к следующей встрече?');
+    const preparation = signal.kind === 'issue' || signal.kind === 'growth'
+      ? '<p class="ai-action"><strong>Вопрос для разговора</strong><br>' + escapeText(question) + '</p>'
+      : '';
+    const aiPanel = signal.kind !== 'none' && signal.kind !== 'unavailable'
+      ? '<section class="drawer-block ai"><div class="ai-head"><h3>Разбор Haiku</h3><span class="meta">Сохранённый ответ модели</span></div>' +
+        '<p class="ai-lead">' + escapeText(signal.topic.charAt(0).toUpperCase() + signal.topic.slice(1)) + '</p><div class="ai-quotes">' +
+        signal.roles.map(({role, status, quotes}) =>
+          '<div><p class="ai-body"><strong>' + roleNames[role] + '</strong><br>' + statusLabels[status] + '</p>' +
+          quotes.map(quote => '<blockquote>«' + escapeText(quote) + '»</blockquote>').join('') + '</div>'
+        ).join('') + '</div>' +
+        (reviewedLabels[record.id + ':' + period] ? '<p class="meta">Метка уточнена по анкете стажёра.</p>' : '') +
+        preparation + '</section>'
+      : '<section class="drawer-block"><h3>Разбор Haiku</h3><p class="meta">' + (signal.kind === 'unavailable' ? 'Для синтетических анкет ИИ-разбор не проводился.' : 'По текущим ответам активной темы нет.') + '</p></section>';
+    const followup = signal.kind !== 'none' && signal.kind !== 'unavailable'
+      ? '<section class="drawer-block followup"><h3>' + (review ? 'Обсуждено' : 'Действия HR') + '</h3>' +
+        (previous ? '<p class="review-note"><strong>Тему уже обсуждали в месяце ' + (previous.month + 1) +
+          '</strong><br>Что договорились сделать — ' + escapeText(previous.note) + '</p>' : '') +
+        (review ? '<p class="review-note">' + escapeText(review) + '</p>' : '') +
+        '<details><summary>' + (review ? 'Изменить запись' : 'Обсудить') + '</summary>' +
+        '<form id="discussion-form" data-person="' + record.id + '"><label>Следующий шаг' +
+        '<textarea name="nextStep" required maxlength="400">' + escapeText(review ?? '') +
+        '</textarea></label><button type="submit">' + (review ? 'Сохранить запись' : 'Отметить как обсуждено') +
+        '</button></form></details><p id="save-status" class="save-status" tabindex="-1" role="status">' +
+        escapeText(savedMessage) + '</p></section>'
+      : '';
+    const evidence = '<section class="drawer-block evidence"><h3>Исходные ответы за месяц</h3>' +
+      [['intern', 'стажёра'], ['mentor', 'наставника']].map(([role, label]) =>
+        '<details><summary>Анкета ' + label + '</summary>' +
+        record.texts[period][role].map(text => '<blockquote>«' + escapeText(text) + '»</blockquote>').join('') +
+        '</details>'
+      ).join('') + '</section>';
+
+    get('case-content').innerHTML = '<div class="numbers"><span>Оценка наставника <strong>' + score(record.average) +
+      '</strong></span><span>Медиана выборки <strong>' + score(baseline) + '</strong></span>' +
+      '</div>' + aiPanel + followup +
+      '<section class="drawer-block"><h3>Что оценил наставник</h3><p class="metric-key">Черта показывает медиану группы по критерию</p>' +
+      '<div class="metric-list">' + profile + '</div></section>' + evidence + caseHistory(record, period);
+    if (!drawer.open) {
+      drawer.scrollTop = 0;
+      drawer.showModal();
+    }
+  }
+
+  drawer.addEventListener('submit', event => {
+    const form = event.target;
+    if (form.id !== 'discussion-form') return;
+    event.preventDefault();
+    const input = form.elements.namedItem('nextStep');
+    const note = input.value.trim();
+    if (!note) {
+      input.setCustomValidity('Запишите следующий шаг.');
+      input.reportValidity();
+      return;
+    }
+    const record = view.records.find(item => item.id === form.dataset.person);
+    if (!record) return;
+    const key = reviewKey(record, record.personalPeriod, issueAt(record, record.personalPeriod));
+    let message = 'Следующий шаг сохранён в этом браузере.';
+    try {
+      localStorage.setItem(key, note);
+      sessionNotes.delete(key);
+    } catch {
+      sessionNotes.set(key, note);
+      message = 'Запись сохранена до закрытия страницы.';
+    }
+    plotQueue();
+    const trigger = returnFocus?.isConnected ? returnFocus
+      : get('queue-list').querySelector('[data-person="' + record.id + '"]');
+    renderCase(record.id, trigger, message);
+    get('save-status').focus();
+  });
+
+  drawer.addEventListener('change', event => {
+    if (event.target.id === 'history-metric') {
+      selectedHistoryMetric = Number(event.target.value);
+      renderCase(openedPersonId, returnFocus);
+      get('history-metric').focus();
+    }
+  });
+
+  drawer.addEventListener('input', event => {
+    if (event.target.name === 'nextStep') event.target.setCustomValidity('');
+  });
+
+  document.querySelector('main').addEventListener('click', (event) => {
+    const point = event.target.closest('[data-person]');
+    if (point) { selectedHistoryMetric = 2; renderCase(point.dataset.person, point); }
+    const moreComparisons = event.target.closest('[data-show-comparisons]');
+    if (moreComparisons) {
+      showAllComparisons = !showAllComparisons;
+      plotAdditionalCharts();
+      document.querySelector('[data-show-comparisons]').focus();
+    }
+    const segment = event.target.closest('[data-distribution]');
+    if (segment) {
+      expandedDistribution = expandedDistribution === segment.dataset.distribution ? null : segment.dataset.distribution;
+      plotAdditionalCharts();
+      document.querySelector('[data-distribution="' + segment.dataset.distribution + '"]').focus();
+    }
+    const topic = event.target.closest('[data-topic-index]');
+    if (topic) {
+      const index = Number(topic.dataset.topicIndex);
+      expandedTopic = expandedTopic === index ? null : index;
+      plotOverviewCharts();
+      document.querySelector('[data-topic-index="' + index + '"]').focus();
+    }
+    const department = event.target.closest('[data-department-index]');
+    if (department) {
+      const index = Number(department.dataset.departmentIndex);
+      expandedDepartment = expandedDepartment === index ? null : index;
+      plotOverviewCharts();
+      document.querySelector('[data-department-index="' + index + '"]').focus();
+    }
+    const sort = event.target.closest('[data-sort]');
+    if (sort) {
+      if (sortMetric === sort.dataset.sort) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+      else { sortMetric = sort.dataset.sort; sortDirection = 'desc'; }
+      plotRanking();
+      document.querySelector('[data-sort="' + sortMetric + '"]').focus();
+    }
+    const metric = event.target.closest('[data-metric]');
+    if (metric) { selectedMetric = metric.dataset.metric; render(); }
+    const insight = event.target.closest('[data-insight]');
+    if (insight) {
+      expandedInsight = expandedInsight === insight.dataset.insight ? null : insight.dataset.insight;
+      plotInsights();
+      document.querySelector('[data-insight="' + insight.dataset.insight + '"]').focus();
+    }
+  });
+  get('period-navigation').addEventListener('click', event => {
+    const button = event.target.closest('[data-month]');
+    if (!button) return;
+    selectedMonth = Number(button.dataset.month);
+    expandedInsight = null;
+    expandedDistribution = null;
+    expandedTopic = null;
+    expandedDepartment = null;
+    render();
+    get('period-navigation').querySelector('[data-month="' + selectedMonth + '"]').focus();
+  });
+  document.querySelectorAll('[data-dataset]').forEach(button => button.addEventListener('click', () => {
+    dataset = button.dataset.dataset;
+    showAllComparisons = false;
+    expandedInsight = null;
+    expandedDistribution = null;
+    expandedTopic = null;
+    expandedDepartment = null;
+    render();
+  }));
+  document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
+    mode = button.dataset.view;
+    selectedMonth = mode === 'calendar' ? 5 : 3;
+    expandedInsight = null;
+    expandedDistribution = null;
+    expandedTopic = null;
+    expandedDepartment = null;
+    render();
+  }));
+  get('close-case').addEventListener('click', () => drawer.close());
+  drawer.addEventListener('click', (event) => {
+    if (event.target !== drawer) return;
+    const bounds = drawer.getBoundingClientRect();
+    if (event.clientX < bounds.left) drawer.close();
+  });
+  drawer.addEventListener('close', () => returnFocus?.focus());
+  render();
+})();
+</script>
+</body>
 </html>
