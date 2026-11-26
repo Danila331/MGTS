@@ -194,13 +194,21 @@ function normalizeResponse(value: unknown): SurveyResponse {
 function normalizeAssignments(value: unknown) {
   return list(value).map((item) => typeof item === "string" ? item : `${toFrontendId(str(rec(item).internship_id))} · ${str(rec(item).status, "assigned")}`);
 }
+const dashboardDimensionLabels: Record<string, string> = {
+  clarity: "Понятность задач", support: "Поддержка наставника", workload: "Комфортность нагрузки",
+  interest: "Интерес к задачам", growth: "Профессиональное развитие", team: "Взаимодействие с командой",
+  satisfaction: "Удовлетворённость стажировкой", understanding: "Понимание задач", quality: "Качество задач",
+  independence: "Самостоятельность", deadlines: "Соблюдение сроков", engagement: "Вовлечённость",
+  communication: "Взаимодействие с командой",
+};
 function normalizeDashboardTrends(raw: R) {
   const dimensions = list(raw.dimension_trends);
   if (dimensions.length) return dimensions.map((item, index) => {
     const trend = rec(item);
+    const dimension = str(trend.dimension);
     return {
       id: str(trend.question_id ?? trend.dimension, `trend-${index}`),
-      label: str(trend.label ?? trend.dimension, `Измерение ${index + 1}`),
+      label: dashboardDimensionLabels[dimension] ?? str(trend.label ?? trend.dimension, `Измерение ${index + 1}`),
       values: list(trend.points).map((point) => nullable(rec(point).value)),
     };
   });
@@ -217,6 +225,9 @@ function normalizeDashboard(value: unknown): DashboardData {
   const averages = rec(raw.averages);
   const items = list(raw.items).map(normalizeIntern);
   const coverageRaw = rec(raw.coverage);
+  const coverage = Array.isArray(raw.coverage)
+    ? raw.coverage.map((item) => ({ label: str(rec(item).label), value: num(rec(item).value ?? rec(item).percent), total: num(rec(item).total, 100) }))
+    : [{ label: "Ответы стажёров и наставников", value: num(coverageRaw.percent), total: num(coverageRaw.invited) }];
   return {
     metrics: {
       interns: num(metrics.interns, items.length),
@@ -225,7 +236,7 @@ function normalizeDashboard(value: unknown): DashboardData {
       attention: num(metrics.attention ?? metrics.requires_attention, items.filter((item) => item.traffic_light !== "green").length),
     },
     items,
-    coverage: Array.isArray(raw.coverage) ? raw.coverage.map((item) => ({ label: str(rec(item).label), value: num(rec(item).value ?? rec(item).percent), total: num(rec(item).total, 100) })) : [],
+    coverage,
     averages: {
       latest_score: nullable(averages.latest_score ?? metrics.avg_score),
       overall_score: nullable(averages.overall_score),
