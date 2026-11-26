@@ -7,6 +7,7 @@ import type {
   InternItem,
   InternshipDetail,
   MetricComparison,
+  ParticipationState,
   Question,
   ScoreSummary,
   Survey,
@@ -228,6 +229,7 @@ function normalizeDashboard(value: unknown): DashboardData {
   const coverage = Array.isArray(raw.coverage)
     ? raw.coverage.map((item) => ({ label: str(rec(item).label), value: num(rec(item).value ?? rec(item).percent), total: num(rec(item).total, 100) }))
     : [{ label: "Ответы стажёров и наставников", value: num(coverageRaw.percent), total: num(coverageRaw.invited) }];
+  const participation = (value: unknown): ParticipationState => value === "submitted" || value === "pending" ? value : "";
   return {
     metrics: {
       interns: num(metrics.interns, items.length),
@@ -244,6 +246,14 @@ function normalizeDashboard(value: unknown): DashboardData {
     },
     trends: normalizeDashboardTrends(raw),
     updated_at: date(raw.updated_at),
+    survey_participation: list(raw.survey_participation).map((item) => {
+      const row = rec(item);
+      return {
+        internship_id: toFrontendId(str(row.internship_id)),
+        name: str(row.name),
+        periods: list(row.periods).map((item) => ({ intern: participation(rec(item).intern), mentor: participation(rec(item).mentor) })),
+      };
+    }),
   };
 }
 function normalizeTrendPoints(value: unknown): TrendPoint[] {
@@ -307,6 +317,7 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
   if (parts[0] === "bootstrap") return { ...raw, actor: normalizeActor(raw.actor), actors: list(raw.actors).map(normalizeActor) } as T;
   if (parts[0] === "dashboard") return normalizeDashboard(raw) as T;
   if (parts[0] === "interns" && parts.length === 1) return { ...raw, items: list(raw.items).map(normalizeIntern) } as T;
+  if (parts[0] === "interns" && parts[1] === "options") return raw as T;
   if (parts[0] === "interns" && parts[1]) {
     const internship = normalizeIntern(raw.internship);
     const trends = normalizeTrendPoints(raw.trends);

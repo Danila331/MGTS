@@ -10,6 +10,17 @@ import (
 	identity "mgts/backend/internal/modules/identity/usecase"
 )
 
+type surveyPeriodStatus struct {
+	Intern string `json:"intern"`
+	Mentor string `json:"mentor"`
+}
+
+type surveyParticipation struct {
+	InternshipID string                `json:"internship_id"`
+	Name         string                `json:"name"`
+	Periods      [6]surveyPeriodStatus `json:"periods"`
+}
+
 func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any, error) {
 	state, err := s.store.Snapshot(ctx)
 	if err != nil {
@@ -24,8 +35,14 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 	}
 	internships := identity.ScopedInternships(state, actor)
 	allowed := map[string]bool{}
+	participation := make([]surveyParticipation, 0, len(internships))
+	participationIndex := make(map[string]int, len(internships))
 	for _, internship := range internships {
 		allowed[internship.ID] = true
+		if actor.Role == domain.RoleHR {
+			participationIndex[internship.ID] = len(participation)
+			participation = append(participation, surveyParticipation{InternshipID: internship.ID, Name: internship.Intern.Name})
+		}
 	}
 	points := []domain.MetricPoint{}
 	invited, submitted := 0, 0
@@ -45,6 +62,18 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 		if assignment.Status == "submitted" {
 			submitted++
 			unique[assignment.RespondentID] = true
+		}
+		if index, ok := participationIndex[assignment.InternshipID]; ok {
+			survey := state.Surveys[assignment.SurveyID]
+			if survey.Wave >= 1 && survey.Wave <= 6 && (survey.Status == "published" || survey.Status == "closed") {
+				status := &participation[index].Periods[survey.Wave-1]
+				switch survey.Audience {
+				case domain.RoleIntern:
+					status.Intern = mergeParticipation(status.Intern, assignment.Status)
+				case domain.RoleMentor:
+					status.Mentor = mergeParticipation(status.Mentor, assignment.Status)
+				}
+			}
 		}
 	}
 	coverage := 0.0
@@ -88,7 +117,8 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 			"active_cohorts": len(cohorts), "average_score": latestAverage,
 		},
 		"items": internList["items"], "dimension_trends": buildTrends(points), "cohorts": cohorts,
-		"coverage": map[string]any{"invited": invited, "submitted": submitted, "unique": len(unique), "percent": coverage},
+		"survey_participation": participation,
+		"coverage":             map[string]any{"invited": invited, "submitted": submitted, "unique": len(unique), "percent": coverage},
 		"averages": map[string]any{
 			"latest_score": latestAverage, "overall_score": avg(overallValues),
 			"cohort_average": cohortAverage,
@@ -96,6 +126,13 @@ func (s *Service) Dashboard(ctx context.Context, actorID string) (map[string]any
 		},
 		"updated_at": s.now(),
 	}, nil
+}
+
+func mergeParticipation(current, assignmentStatus string) string {
+	if current == "submitted" || assignmentStatus == "submitted" {
+		return "submitted"
+	}
+	return "pending"
 }
 
 func urgencyRank(value string) int {

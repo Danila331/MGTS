@@ -49,6 +49,32 @@ func (h *handler) interns(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, result)
 }
+func (h *handler) internOptions(c echo.Context) error {
+	if err := requireExplicitHR(c); err != nil {
+		return err
+	}
+	result, err := h.svc.InternOptions(c.Request().Context(), actor(c).ID)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, result)
+}
+
+func (h *handler) createIntern(c echo.Context) error {
+	if err := requireExplicitHR(c); err != nil {
+		return err
+	}
+	var input usecase.NewIntern
+	if err := c.Bind(&input); err != nil {
+		return err
+	}
+	result, err := h.svc.CreateIntern(c.Request().Context(), actor(c).ID, input)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusCreated, result)
+}
+
 func (h *handler) internship(c echo.Context) error {
 	result, err := h.svc.Internship(c.Request().Context(), actor(c).ID, c.Param("id"))
 	if err != nil {

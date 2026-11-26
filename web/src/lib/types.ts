@@ -92,6 +92,15 @@ export interface DashboardData {
   averages: { latest_score: number | null; overall_score: number | null; cohort_average: number | null };
   trends: { id?: string; label: string; values: (number | null)[] }[];
   updated_at: string;
+  survey_participation?: SurveyParticipation[];
+}
+
+export type ParticipationState = "" | "pending" | "submitted";
+
+export interface SurveyParticipation {
+  internship_id: ID;
+  name: string;
+  periods: { intern: ParticipationState; mentor: ParticipationState }[];
 }
 
 export interface MetricComparison {

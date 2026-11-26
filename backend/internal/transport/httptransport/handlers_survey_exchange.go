@@ -25,7 +25,7 @@ const (
 	maxImportColumns = 64
 )
 
-func requireSurveyFilesHR(c echo.Context) error {
+func requireExplicitHR(c echo.Context) error {
 	if c.Request().Header.Get("X-Actor-ID") == "" && c.QueryParam("actor_id") == "" {
 		return domain.ErrUnauthorized
 	}
@@ -36,7 +36,7 @@ func requireSurveyFilesHR(c echo.Context) error {
 }
 
 func (h *handler) exportSurveyResponses(c echo.Context) error {
-	if err := requireSurveyFilesHR(c); err != nil {
+	if err := requireExplicitHR(c); err != nil {
 		return err
 	}
 	format := c.QueryParam("format")
@@ -77,7 +77,7 @@ func surveyAttachment(c echo.Context, name, kind string, content []byte) error {
 }
 
 func (h *handler) importSurveyResponses(c echo.Context) error {
-	if err := requireSurveyFilesHR(c); err != nil {
+	if err := requireExplicitHR(c); err != nil {
 		return err
 	}
 	format := c.QueryParam("format")

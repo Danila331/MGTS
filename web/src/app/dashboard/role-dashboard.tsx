@@ -7,6 +7,7 @@ import { useApp } from "@/components/app-provider";
 import { LoadingState, Page } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { DashboardView } from "./dashboard-view";
+import { FeedbackCoverage } from "./feedback-coverage";
 
 const AnalyticsDashboard = dynamic(() => import("./analytics-dashboard"), {
   ssr: false,
@@ -30,6 +31,7 @@ export function RoleDashboard() {
         </Link>
       }
     >
+      <FeedbackCoverage key={`feedback:${actor.id}`} />
       <AnalyticsDashboard key={actor.id} />
     </Page>
   );
