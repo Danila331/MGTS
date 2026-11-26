@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { analyticsMarkup } from "./analytics-markup";
+import { FeedbackCoverage } from "./feedback-coverage";
 import { mountAnalytics } from "./mount-analytics";
 
 export default function AnalyticsDashboard() {
@@ -16,5 +17,7 @@ export default function AnalyticsDashboard() {
     return () => root.replaceChildren();
   }, []);
 
-  return <div ref={ref} />;
+  return <div ref={ref}>
+    <div slot="feedback-coverage"><FeedbackCoverage /></div>
+  </div>;
 }

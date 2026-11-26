@@ -280,6 +280,7 @@ export const analyticsMarkup = `
   </div>
   <p class="date-disclaimer" id="dataset-note">Оценки и ответы взяты из материалов организаторов. Даты начала и отправки анкет демонстрационные.</p>
   <nav class="stages" aria-label="Период дашборда" id="period-navigation"></nav>
+  <slot name="feedback-coverage"></slot>
   <div class="visuals">
     <section class="metric-chart" aria-labelledby="metric-title">
       <div class="chart-head"><div><h3 id="metric-title">Как проходит стажировка</h3>

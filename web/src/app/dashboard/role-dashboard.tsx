@@ -9,7 +9,6 @@ import { LoadingState, Page } from "@/components/page";
 import { buttonVariants } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DashboardView } from "./dashboard-view";
-import { FeedbackCoverage } from "./feedback-coverage";
 
 const AnalyticsDashboard = dynamic(() => import("./analytics-dashboard"), {
   ssr: false,
@@ -52,7 +51,6 @@ function HROverview({ actorID }: { actorID: string }) {
           <TabsTrigger value="mentors" className="px-3">Наставники</TabsTrigger>
         </TabsList>
         <TabsContent value="interns" keepMounted>
-          <FeedbackCoverage key={`feedback:${actorID}`} />
           <AnalyticsDashboard key={actorID} />
         </TabsContent>
         <TabsContent value="mentors" keepMounted>
