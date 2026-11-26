@@ -335,7 +335,7 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
     if (parts[2] === "take") return {
       survey: normalizeSurvey(raw.survey), questions: list(raw.questions).map(normalizeQuestion),
       answers: rec(rec(raw.draft).answers ?? raw.answers) as Answers,
-      internship_id: raw.internship_id ? toFrontendId(str(raw.internship_id)) : url.searchParams.get("internship_id") ?? undefined,
+      internship_id: toFrontendId(str(rec(raw.assignment).internship_id ?? raw.internship_id ?? url.searchParams.get("internship_id"))) || undefined,
     } as T;
     if (raw.survey) return {
       ...raw, survey: normalizeSurvey(raw.survey), questions: list(raw.questions).map(normalizeQuestion),

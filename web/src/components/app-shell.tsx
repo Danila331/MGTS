@@ -12,7 +12,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { Shortcut } from "@/components/shortcut";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useMediaQuery } from "@/hooks/use-media-query";
@@ -20,6 +20,7 @@ import { roleLabels } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const COLLAPSE_KEY = "mgts.sidebar.collapsed";
+const demoRoles = ["hr", "manager", "intern", "mentor"] as const;
 export const SIDEBAR_ITEM = "group/item flex h-8 w-full items-center gap-2.5 rounded-md px-2 text-[13px] text-sidebar-foreground/90 outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-ring/50 aria-[current=page]:bg-sidebar-accent aria-[current=page]:font-medium aria-[current=page]:text-sidebar-foreground";
 const ICON = "size-4 shrink-0 text-muted-foreground group-hover/item:text-sidebar-foreground";
 interface ShellState { desktop: boolean; sidebarOpen: boolean; setSidebarOpen: (open: boolean) => void; openPalette: () => void; }
@@ -29,6 +30,19 @@ export const useShell = () => useContext(ShellContext);
 function ActorMenu() {
   const { actor, actors, setActor } = useApp();
   const { theme, setTheme } = useTheme();
+  const pathname = usePathname();
+  const router = useRouter();
+  const roleChoices = demoRoles.map((role) => ({
+    role,
+    representative: actors.find((item) => item.role === role && item.id === `a-${role}`) ?? actors.find((item) => item.role === role),
+  }));
+  const selectRole = (value: string) => {
+    const selected = roleChoices.find(({ role }) => role === value)?.representative;
+    if (!selected || selected.role === actor.role) return;
+    setActor(selected.id);
+    const section = NAV.find(({ href }) => pathname === href || pathname.startsWith(`${href}/`));
+    if (section && !section.roles.includes(selected.role)) router.replace(selected.role === "intern" ? "/me" : "/dashboard");
+  };
   return <DropdownMenu>
     <DropdownMenuTrigger render={<button type="button" className="flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring/50" />}>
       <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-secondary text-[11px] font-medium">{actor.initials}</span>
@@ -37,8 +51,10 @@ function ActorMenu() {
     </DropdownMenuTrigger>
     <DropdownMenuContent side="top" align="start" sideOffset={6} className="w-[248px]">
       <DropdownMenuGroup>
-        <DropdownMenuLabel>Демо-актор</DropdownMenuLabel>
-        {actors.map((item) => <DropdownMenuItem key={item.id} onClick={() => setActor(item.id)} closeOnClick={false}><span className="flex size-6 items-center justify-center rounded-full bg-secondary text-[10px]">{item.initials}</span><span className="min-w-0 flex-1"><span className="block truncate">{item.name}</span><span className="block text-[11px] text-muted-foreground">{roleLabels[item.role]}</span></span>{actor.id === item.id && <Check className="ml-auto" />}</DropdownMenuItem>)}
+        <DropdownMenuLabel>Демо-роль</DropdownMenuLabel>
+        <DropdownMenuRadioGroup value={actor.role} onValueChange={selectRole}>
+          {roleChoices.map(({ role, representative }) => <DropdownMenuRadioItem key={role} value={role} disabled={!representative} className="min-h-8 px-2.5">{roleLabels[role]}</DropdownMenuRadioItem>)}
+        </DropdownMenuRadioGroup>
       </DropdownMenuGroup>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>

@@ -141,6 +141,8 @@ export function mountAnalytics(root) {
   const startMonth = person => dataset === 'organizers' ? demoStartMonths[person.id] : person.startMonth;
   let sortMetric = 'average';
   let sortDirection = 'desc';
+  const rankingPageSize = 10;
+  let rankingPage = 1;
 
   const calendarMonths = ['Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь'];
   const demoStartMonths = {'СТ-001': 0, 'СТ-002': 1, 'СТ-003': 2, 'СТ-004': 3, 'СТ-005': 4};
@@ -498,6 +500,14 @@ export function mountAnalytics(root) {
       const diff = valueFor(a) - valueFor(b);
       return (sortDirection === 'asc' ? diff : -diff) || a.id.localeCompare(b.id, 'ru');
     });
+    const pageCount = Math.max(1, Math.ceil(sorted.length / rankingPageSize));
+    rankingPage = Math.max(1, Math.min(rankingPage, pageCount));
+    const pageStart = (rankingPage - 1) * rankingPageSize;
+    const pageEnd = Math.min(pageStart + rankingPageSize, sorted.length);
+    get('ranking-pagination').hidden = pageCount === 1;
+    get('ranking-page-status').textContent = `${pageStart + 1}–${pageEnd} из ${sorted.length} · Страница ${rankingPage} из ${pageCount}`;
+    get('ranking-previous').disabled = rankingPage === 1;
+    get('ranking-next').disabled = rankingPage === pageCount;
     const columns = [{key: 'average', label: 'Среднее'}, ...metrics.map((label, index) => ({key: String(index), label}))];
     get('ranking-summary').textContent = records.length + ' стажёров · оценки наставников за выбранный период';
     get('ranking-explanation').textContent = 'Цвет и перцентиль рассчитаны относительно текущей выборки по столбцу «' +
@@ -508,7 +518,7 @@ export function mountAnalytics(root) {
       '><button type="button" data-sort="' + column.key + '">' + column.label +
       (column.key === sortMetric ? (sortDirection === 'asc' ? ' ↑' : ' ↓') : ' ↕') +
       '</button></th>').join('') + '<th scope="col">Перцентиль</th></tr>';
-    get('ranking-body').innerHTML = sorted.map(record => {
+    get('ranking-body').innerHTML = sorted.slice(pageStart, pageEnd).map(record => {
       const percentile = percentileRank(valueFor(record), values);
       const band = rankBand(percentile);
       return '<tr class="' + band.style + '"><td><button type="button" data-person="' + record.id + '">' + record.id +
@@ -694,6 +704,7 @@ export function mountAnalytics(root) {
     if (sort) {
       if (sortMetric === sort.dataset.sort) sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
       else { sortMetric = sort.dataset.sort; sortDirection = 'desc'; }
+      rankingPage = 1;
       plotRanking();
       root.querySelector('[data-sort="' + sortMetric + '"]').focus();
     }
@@ -706,10 +717,19 @@ export function mountAnalytics(root) {
       root.querySelector('[data-insight="' + insight.dataset.insight + '"]').focus();
     }
   });
+  get('ranking-pagination').addEventListener('click', event => {
+    const button = event.target.closest('[data-ranking-step]');
+    if (!button || button.disabled) return;
+    const step = Number(button.dataset.rankingStep);
+    rankingPage += step;
+    plotRanking();
+    if (button.disabled) get(step > 0 ? 'ranking-previous' : 'ranking-next').focus();
+  });
   get('period-navigation').addEventListener('click', event => {
     const button = event.target.closest('[data-month]');
     if (!button) return;
     selectedMonth = Number(button.dataset.month);
+    rankingPage = 1;
     expandedInsight = null;
     expandedDistribution = null;
     expandedTopic = null;
@@ -719,6 +739,7 @@ export function mountAnalytics(root) {
   });
   root.querySelectorAll('[data-dataset]').forEach(button => button.addEventListener('click', () => {
     dataset = button.dataset.dataset;
+    rankingPage = 1;
     showAllComparisons = false;
     expandedInsight = null;
     expandedDistribution = null;
@@ -729,6 +750,7 @@ export function mountAnalytics(root) {
   root.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => {
     mode = button.dataset.view;
     selectedMonth = mode === 'calendar' ? 5 : 3;
+    rankingPage = 1;
     expandedInsight = null;
     expandedDistribution = null;
     expandedTopic = null;

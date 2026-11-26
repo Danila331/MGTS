@@ -203,6 +203,13 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .ranking-table tbody tr.rank-2 { background:color-mix(in srgb, var(--warning) 5%, var(--card)); }
 .ranking-table tbody tr.rank-1 { background:color-mix(in srgb, var(--destructive) 5%, var(--card)); }
 .ranking-table .rank-badge { display:inline-block; border-radius:5px; padding:4px 7px; font-weight:700; }
+.ranking-pagination { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:8px; margin-top:12px; }
+.ranking-pagination[hidden] { display:none; }
+.ranking-pagination p { color:var(--muted-foreground); font-size:.78rem; font-variant-numeric:tabular-nums; }
+.ranking-pagination .pagination-buttons { display:flex; flex-wrap:wrap; gap:6px; }
+.ranking-pagination button { min-height:36px; padding:0 12px; border:1px solid var(--border); border-radius:8px; background:var(--card); color:var(--foreground); font-size:.8rem; font-weight:600; }
+.ranking-pagination button:hover:not(:disabled) { background:var(--accent); }
+.ranking-pagination button:disabled { color:var(--muted-foreground); opacity:.65; cursor:default; }
 .topic-bar { display:flex; background:transparent; gap:2px; }
 .topic-bar i.topic-negative { background:var(--tone-danger); }
 .topic-bar i.topic-positive { background:var(--tone-success); }
@@ -327,6 +334,13 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
     <div class="ranking-scroll" role="region" aria-labelledby="ranking-title" tabindex="0"><table class="ranking-table">
       <thead id="ranking-head"></thead><tbody id="ranking-body"></tbody>
     </table></div>
+    <nav id="ranking-pagination" class="ranking-pagination" aria-label="Страницы рейтинга" hidden>
+      <p id="ranking-page-status" role="status"></p>
+      <div class="pagination-buttons">
+        <button id="ranking-previous" type="button" data-ranking-step="-1" aria-controls="ranking-body">Назад</button>
+        <button id="ranking-next" type="button" data-ranking-step="1" aria-controls="ranking-body">Далее</button>
+      </div>
+    </nav>
   </section>
 </div>
 <dialog id="drawer" aria-labelledby="case-title">

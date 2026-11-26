@@ -29,7 +29,7 @@ interface Props {
   sort: InternSort;
   onSearch: (value: string) => void;
   onDepartment: (value: string) => void;
-  onSort: (value: InternSort) => void;
+  onSort?: (value: InternSort) => void;
   onReset: () => void;
 }
 
@@ -45,11 +45,11 @@ export function InternDirectory({ items, search, department, sort, onSearch, onD
         <option value="">Все блоки</option>
         {departments.map((item) => <option key={item} value={item}>{item}</option>)}
       </select>
-      <select className={`${fieldClass} min-h-11 sm:w-auto sm:min-w-44`} value={sort} onChange={(event) => onSort(event.target.value as InternSort)} aria-label="Сортировка стажёров">
+      {onSort && <select className={`${fieldClass} min-h-11 sm:w-auto sm:min-w-44`} value={sort} onChange={(event) => onSort(event.target.value as InternSort)} aria-label="Сортировка стажёров">
         <option value="percentile">По перцентилю</option>
         <option value="score">По среднему баллу</option>
         <option value="name">По имени</option>
-      </select>
+      </select>}
     </div>
 
     {items.length === 0 ? <EmptyState title="Стажёры не найдены" text="Измените поисковый запрос или сбросьте фильтр по блоку." action={<Button variant="outline" onClick={onReset}>Сбросить фильтры</Button>} /> : <>

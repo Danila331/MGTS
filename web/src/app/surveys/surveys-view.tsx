@@ -1,10 +1,11 @@
 "use client";
 
-import { ChevronRight, ClipboardCheck, UserRound, UsersRound } from "lucide-react";
+import { ArrowRight, ChevronRight, ClipboardCheck, UserRound, UsersRound } from "lucide-react";
 import Link from "next/link";
 import { useApp } from "@/components/app-provider";
 import { ProgressBar } from "@/components/charts";
 import { Badge, EmptyState, ErrorState, LoadingState, Page, Panel } from "@/components/page";
+import { buttonVariants } from "@/components/ui/button";
 import { useResource } from "@/hooks/use-resource";
 import { get } from "@/lib/api";
 import { formatDate, statusLabels } from "@/lib/format";
@@ -32,15 +33,15 @@ export function SurveysView() {
   return <Page title="Анкеты" subtitle="Две формы · шесть контрольных периодов">
     <div className="space-y-4"><div><h2 className="text-[22px] font-semibold tracking-[-0.025em]">Библиотека Пульса</h2><p className="mt-1 text-[13px] text-muted-foreground">Фиксированные формы стажёра и наставника, без произвольного конструктора.</p></div>
       {actor.role === "hr" && <SurveyFiles key={actor.id} onImport={reload} />}
-      {loading && !data ? <LoadingState rows={6} /> : error && !data ? <ErrorState error={error} retry={reload} /> : !data?.items.length ? <EmptyState title="Анкеты пока не назначены" text="Доступные контрольные периоды появятся здесь автоматически." /> : <>
-        <section className={`grid gap-3 ${audiences.length === 2 ? "md:grid-cols-2" : ""}`} aria-label="Типы форм">
-          {audiences.includes("intern") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info"><UserRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Пульс-опрос стажёра</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">7 шкал 1–5, «Сложности за период» и «Что мешает работать и развиваться».</p></div></div></Panel>}
-          {audiences.includes("mentor") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success"><UsersRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Анкета наставника</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">6 шкал 1–5, «Комментарий о работе за период» и «Сложности / ситуации для внимания».</p></div></div></Panel>}
-        </section>
+      <section className={`grid gap-3 ${audiences.length === 2 ? "md:grid-cols-2" : ""}`} aria-label="Типы форм">
+        {audiences.includes("intern") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-info-soft text-info"><UserRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Пульс-опрос стажёра</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">7 шкал 1–5, «Сложности за период» и «Что мешает работать и развиваться».</p><Link href="/forms/intern" className={buttonVariants({ variant: "outline", size: "sm", className: "mt-3" })}>Открыть форму стажёра <ArrowRight aria-hidden /></Link></div></div></Panel>}
+        {audiences.includes("mentor") && <Panel><div className="flex gap-3"><span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success-soft text-success"><UsersRound className="size-4" /></span><div><h3 className="text-[14px] font-semibold">Анкета наставника</h3><p className="mt-1 text-[12px] leading-5 text-muted-foreground">6 шкал 1–5, «Комментарий о работе за период» и «Сложности / ситуации для внимания».</p><Link href="/forms/mentor" className={buttonVariants({ variant: "outline", size: "sm", className: "mt-3" })}>Открыть форму наставника <ArrowRight aria-hidden /></Link></div></div></Panel>}
+      </section>
+      {loading && !data ? <LoadingState rows={6} /> : error && !data ? <ErrorState error={error} retry={reload} /> : !data?.items.length ? <EmptyState title="Анкеты пока не назначены" text="Доступные контрольные периоды появятся здесь автоматически." /> :
         <Panel title="Контрольные периоды" note="Структура, ответы и покрытие по каждому месяцу">
           <div className="space-y-3">{periods.map((period) => <section key={period} className="rounded-xl border bg-surface p-3"><div className="mb-3 flex items-center gap-2"><ClipboardCheck className="size-4 text-muted-foreground" /><h3 className="text-[13px] font-semibold">{period}</h3></div><div className={`grid gap-3 ${audiences.length === 2 ? "lg:grid-cols-2" : ""}`}>{audiences.map((audience) => <SurveyLink key={audience} survey={byKey.get(`${audience}:${period}`)} actorRole={actor.role} />)}</div></section>)}</div>
         </Panel>
-      </>}
+      }
     </div>
   </Page>;
 }
