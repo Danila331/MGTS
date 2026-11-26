@@ -315,7 +315,7 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
   const raw = rec(value);
   if (parts[0] === "actors") return { ...raw, items: list(raw.items).map(normalizeActor) } as T;
   if (parts[0] === "bootstrap") return { ...raw, actor: normalizeActor(raw.actor), actors: list(raw.actors).map(normalizeActor) } as T;
-  if (parts[0] === "dashboard") return normalizeDashboard(raw) as T;
+  if (parts[0] === "dashboard" && parts.length === 1) return normalizeDashboard(raw) as T;
   if (parts[0] === "interns" && parts.length === 1) return { ...raw, items: list(raw.items).map(normalizeIntern) } as T;
   if (parts[0] === "interns" && parts[1] === "options") return raw as T;
   if (parts[0] === "interns" && parts[1]) {
@@ -337,6 +337,20 @@ export async function normalizeRemote<T>(path: string, value: unknown, _fetcher:
       responses: list(raw.responses).map(normalizeResponse),
       summary: normalizeSummary(raw.summary, internship),
       coverage: normalizeCoverage(raw.coverage, internship.coverage),
+      ...(Array.isArray(raw.survey_signals) && { survey_signals: raw.survey_signals.map((value) => {
+        const signal = rec(value);
+        const dimension = dashboardDimensionLabels[str(signal.dimension)];
+        const rule = str(signal.rule);
+        const title = dimension && rule === "low_scale_threshold" ? `Низкая оценка · ${dimension}`
+          : dimension && rule === "positive_scale_threshold" ? `Сильная практика · ${dimension}` : str(signal.title);
+        return {
+          id: str(signal.id), title, summary: str(signal.summary), urgency: str(signal.urgency), status: str(signal.status),
+          evidence: list(signal.evidence).map((value) => {
+            const source = rec(value);
+            return { source_id: str(source.source_id), type: str(source.type), quote: str(source.quote) };
+          }),
+        };
+      }) }),
     };
     return result as T;
   }

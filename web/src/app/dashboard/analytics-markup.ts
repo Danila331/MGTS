@@ -1,5 +1,4 @@
-export const analyticsMarkup = `
-<style>
+export const analyticsStyles = `
 :host {
   display: block;
   container-type: inline-size;
@@ -260,7 +259,10 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .ranking-table th button, .ranking-table td button { min-height: 26px; }
 .rank-key, .rank-badge { font-variant-numeric: tabular-nums; }
 .ranking-scroll:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
-</style>
+`;
+
+export const analyticsMarkup = `
+<style>${analyticsStyles}</style>
 <div class="page">
   <div class="page-head">
     <h2>Аналитика стажировок</h2>

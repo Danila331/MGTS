@@ -117,6 +117,18 @@ type Response struct {
 	UpdatedAt    time.Time      `json:"updated_at"`
 }
 
+func (r Response) HasSubmittedQuote(quote string) bool {
+	if r.Status != "submitted" || quote == "" {
+		return false
+	}
+	for _, answer := range r.Answers {
+		if text, ok := answer.(string); ok && text == quote {
+			return true
+		}
+	}
+	return false
+}
+
 type Coverage struct {
 	Invited   int     `json:"invited"`
 	Submitted int     `json:"submitted"`

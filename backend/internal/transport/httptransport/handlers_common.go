@@ -38,6 +38,16 @@ func (h *handler) dashboard(c echo.Context) error {
 	}
 	return c.JSON(http.StatusOK, result)
 }
+func (h *handler) mentorOverview(c echo.Context) error {
+	if err := requireExplicitHR(c); err != nil {
+		return err
+	}
+	result, err := h.svc.MentorOverview(c.Request().Context(), actor(c).ID)
+	if err != nil {
+		return err
+	}
+	return c.JSON(http.StatusOK, result)
+}
 func (h *handler) interns(c echo.Context) error {
 	page, _ := strconv.Atoi(c.QueryParam("page"))
 	result, err := h.svc.Interns(c.Request().Context(), actor(c).ID, usecase.InternFilters{

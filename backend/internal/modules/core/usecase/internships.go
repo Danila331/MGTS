@@ -156,8 +156,69 @@ func (s *Service) Internship(ctx context.Context, actorID, id string) (map[strin
 		"coverage":   coverage,
 		"percentile": map[string]any{"min": score.percentileMin, "max": score.percentileMax, "label": score.percentileLabel},
 	}
+	if actor.Role == domain.RoleHR {
+		result["survey_signals"] = s.internSurveySignals(state, id, responses)
+	}
 	mergeFields(result, score.fields())
 	return result, nil
+}
+
+func (s *Service) internSurveySignals(state *domain.State, id string, responses []domain.Response) []domain.Signal {
+	signals := s.internSignals(state, id)
+	if len(signals) == 0 {
+		return signals
+	}
+	byID := make(map[string]domain.Response, len(responses))
+	for _, response := range responses {
+		byID[response.ID] = response
+	}
+	pointsByResponse := map[string][]domain.MetricPoint{}
+	for _, point := range state.Metrics {
+		if _, ok := byID[point.ResponseID]; ok && point.InternshipID == id {
+			pointsByResponse[point.ResponseID] = append(pointsByResponse[point.ResponseID], point)
+		}
+	}
+
+	items := []domain.Signal{}
+	for _, signal := range signals {
+		if signal.Status == "resolved" || signal.Status == "dismissed" {
+			continue
+		}
+		// An edited or superseded answer must not be cited as current evidence.
+		evidence := make([]domain.Evidence, 0, len(signal.Evidence))
+		for _, source := range signal.Evidence {
+			response, ok := byID[source.SourceID]
+			if ok && (source.InternshipID == "" || source.InternshipID == id) &&
+				validSurveyEvidence(signal, source, response, pointsByResponse[response.ID]) {
+				evidence = append(evidence, source)
+			}
+		}
+		if len(evidence) > 0 {
+			signal.Evidence = evidence
+			items = append(items, signal)
+		}
+	}
+	sort.SliceStable(items, func(i, j int) bool {
+		if urgencyRank(items[i].Urgency) != urgencyRank(items[j].Urgency) {
+			return urgencyRank(items[i].Urgency) > urgencyRank(items[j].Urgency)
+		}
+		return items[i].UpdatedAt.After(items[j].UpdatedAt)
+	})
+	return items
+}
+
+func validSurveyEvidence(signal domain.Signal, source domain.Evidence, response domain.Response, points []domain.MetricPoint) bool {
+	switch {
+	case signal.Rule == "help_keywords" && source.Type == "quote":
+		return response.HasSubmittedQuote(source.Quote)
+	case (signal.Rule == "low_scale_threshold" || signal.Rule == "positive_scale_threshold") && source.Type == "metric":
+		for _, point := range points {
+			if point.Dimension == signal.Dimension && point.Value == source.Value {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (s *Service) UpdateInternship(ctx context.Context, actorID, id string, patch InternshipPatch) (domain.Internship, error) {

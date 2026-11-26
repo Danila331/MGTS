@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 
 	"mgts/backend/internal/modules/core/domain"
 )
@@ -123,7 +124,13 @@ func refreshTextSignal(state *domain.State, response domain.Response, survey dom
 		now := domain.Now()
 		evidence := domain.Evidence{ID: response.ID, Type: "quote", SourceID: response.ID, Quote: text, InternshipID: response.InternshipID}
 		if existing, ok := state.Signals[id]; ok {
-			existing.Evidence = appendEvidence(existing.Evidence, evidence)
+			current := make([]domain.Evidence, 0, len(existing.Evidence))
+			for _, source := range existing.Evidence {
+				if original, ok := state.Responses[source.SourceID]; !ok || original.HasSubmittedQuote(source.Quote) {
+					current = append(current, source)
+				}
+			}
+			existing.Evidence = appendEvidence(current, evidence)
 			existing.EvidenceStrength = evidenceStrength(existing.Evidence)
 			existing.UpdatedAt = now
 			state.Signals[id] = existing
@@ -138,10 +145,11 @@ func refreshTextSignal(state *domain.State, response domain.Response, survey dom
 }
 
 func hasHelpIntent(text string) bool {
-	normalized := strings.ToLower(strings.Join(strings.Fields(text), " "))
-	// Remove explicit negations before looking for intent phrases.
-	normalized = strings.ReplaceAll(normalized, "не нужна помощь", "")
-	normalized = strings.ReplaceAll(normalized, "помощь не нужна", "")
+	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+	normalized := " " + strings.Join(words, " ") + " "
+	// Match complete words so "мне нужна помощь" is not mistaken for negation.
+	normalized = strings.ReplaceAll(normalized, " не нужна помощь ", " ")
+	normalized = strings.ReplaceAll(normalized, " помощь не нужна ", " ")
 	phrases := []string{
 		"нужна помощь", "нужна поддержка", "нужна ваша помощь", "нужна твоя помощь",
 		"помогите", "прошу помощи", "прошу о помощи", "прошу помочь", "прошу связаться",
@@ -149,7 +157,7 @@ func hasHelpIntent(text string) bool {
 		"свяжитесь со мной", "можете связаться",
 	}
 	for _, phrase := range phrases {
-		if strings.Contains(normalized, phrase) {
+		if strings.Contains(normalized, " "+phrase+" ") {
 			return true
 		}
 	}

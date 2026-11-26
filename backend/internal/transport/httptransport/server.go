@@ -47,6 +47,7 @@ func NewServer(service *usecase.Service, logger zerolog.Logger, version string, 
 	api.GET("/bootstrap", h.bootstrap)
 	api.GET("/me", h.me)
 	api.GET("/dashboard", h.dashboard)
+	api.GET("/dashboard/mentors", h.mentorOverview)
 	api.GET("/interns", h.interns)
 	api.POST("/interns", h.createIntern)
 	api.GET("/interns/options", h.internOptions)

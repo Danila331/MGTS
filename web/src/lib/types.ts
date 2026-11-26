@@ -126,6 +126,16 @@ export interface InternshipDetail {
   responses: SurveyResponse[];
   summary: ScoreSummary;
   coverage: Coverage;
+  survey_signals?: SurveySignal[];
+}
+
+export interface SurveySignal {
+  id: ID;
+  title: string;
+  summary: string;
+  urgency: string;
+  status: string;
+  evidence: { source_id: ID; type: string; quote: string }[];
 }
 
 export interface SurveyDetail {

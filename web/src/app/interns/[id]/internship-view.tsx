@@ -12,13 +12,18 @@ import { ResponseList } from "@/components/response-list";
 import { useResource } from "@/hooks/use-resource";
 import { get } from "@/lib/api";
 import { formatDate } from "@/lib/format";
-import type { InternshipDetail, TrendPoint } from "@/lib/types";
+import type { Actor, InternshipDetail, TrendPoint } from "@/lib/types";
+import { SurveySignals } from "./survey-signals";
 
 type Tab = "overview" | "responses";
 const emptyTrend = (month: number): TrendPoint => ({ period: `Месяц ${month}`, label: `Месяц ${month}`, intern: null, mentor: null });
 
 export function InternshipView({ id }: { id: string }) {
   const { actor } = useApp();
+  return <InternshipCard key={`${actor.id}:${id}`} actor={actor} id={id} />;
+}
+
+function InternshipCard({ actor, id }: { actor: Actor; id: string }) {
   const { data, error, loading, reload } = useResource(() => get<InternshipDetail>(`/interns/${id}`), [id, actor.id]);
   const [tab, setTab] = useState<Tab>("overview");
   const trends = Array.from({ length: 6 }, (_, index) => data?.trends.find((point) => point.period === `Месяц ${index + 1}` || point.label === `Месяц ${index + 1}`) ?? data?.trends[index] ?? emptyTrend(index + 1));
@@ -31,6 +36,7 @@ export function InternshipView({ id }: { id: string }) {
       <section className="grid grid-cols-2 overflow-hidden rounded-xl border bg-card lg:grid-cols-4" aria-label="Показатели стажёра">
         {[["Текущий средний", formatScore(data.summary.latest_score)], ["Общий средний", formatScore(data.summary.overall_score)], ["Средний когорты", formatScore(data.summary.cohort_average)], ["Перцентиль", data.summary.percentile_label]].map(([label, value]) => <div key={label} className="border-b border-r p-4 nth-3:border-b-0 nth-4:border-b-0 even:border-r-0 lg:border-b-0 lg:last:border-r-0"><p className="text-[11px] text-muted-foreground">{label}</p><p className="tnum mt-2 text-[24px] font-medium">{value}</p>{label === "Перцентиль" && <p className="mt-1 text-[11px] text-muted-foreground">диапазон в когорте</p>}</div>)}
       </section>
+      {actor.role === "hr" && data.survey_signals && <SurveySignals signals={data.survey_signals} responses={data.responses} refreshing={loading} refreshFailed={Boolean(error)} onRefresh={reload} />}
       <Segmented value={tab} onChange={setTab} label="Разделы карточки стажёра" items={[{ value: "overview", label: "Динамика и оценки" }, { value: "responses", label: `Ответы · ${data.responses.length}` }]} />
       {tab === "overview" ? <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"><div className="space-y-4">
         <Panel title="Динамика за 6 месяцев" note="Средние оценки стажёра и наставника по соответствующим формам">
