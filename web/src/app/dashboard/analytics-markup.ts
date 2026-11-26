@@ -112,11 +112,17 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 .insight-section { padding:15px 0; border-bottom:1px solid var(--border); }
 .insight-section:last-child { border-bottom:0; }
 .insight-section h4 { font-size:.88rem; margin-bottom:7px; }
-.insight-toggle { width:100%; display:flex; justify-content:space-between; gap:10px; align-items:center; background:none; border:0; border-radius:6px; padding:7px 0; text-align:left; color:var(--ink); font-size:.85rem; }
-.insight-toggle strong { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.insight-row { width:100%; display:flex; gap:8px; align-items:center; padding:7px 0; color:var(--ink); font-size:.85rem; }
+.insight-row span { flex:1; }
+.insight-row strong { white-space:nowrap; font-variant-numeric:tabular-nums; }
+.insight-empty-row { padding-inline-end:14px; }
+.insight-toggle { background:none; border:0; border-radius:6px; text-align:left; }
+.insight-toggle::after { content:""; flex:none; width:6px; height:6px; border-right:1.5px solid currentColor; border-bottom:1.5px solid currentColor; transform:rotate(-45deg); }
+.insight-toggle[aria-expanded="true"]::after { transform:rotate(45deg); }
 .insight-toggle:hover { color:var(--blue); }
-.insight-list { display:grid; gap:5px; padding:4px 0 8px; }
-.insight-person { text-align:left; background:var(--surface); color:var(--ink); border:0; border-radius:6px; padding:8px 10px; font-size:.83rem; }
+.insight-list { display:grid; align-content:start; gap:5px; max-block-size:min(10rem, 40dvh); overflow-y:auto; padding:4px 2px; margin-bottom:6px; border-radius:6px; scrollbar-width:thin; scrollbar-color:var(--ring) transparent; }
+.insight-list:focus-visible, .insight-person:focus-visible { outline:2px solid var(--ring); outline-offset:-2px; }
+.insight-person { min-height:34px; text-align:left; overflow-wrap:anywhere; background:var(--surface); color:var(--ink); border:0; border-radius:6px; padding:8px 10px; font-size:.83rem; }
 .insight-person:hover { background:var(--accent); }
 .insight-empty { color:var(--muted-foreground); font-size:.83rem; }
 .case-select { width:100%; margin-top:9px; border:1px solid var(--border); border-radius:6px; padding:8px; font:inherit; color:var(--ink); background:var(--card); }
@@ -228,6 +234,7 @@ dialog::backdrop { background: rgb(0 0 0 / 0.45); }
 @container (max-width: 560px) {
   .chart-head { flex-wrap: wrap; gap: 7px; }
   .queue-list { grid-template-columns: minmax(0, 1fr); }
+  .insight-toggle, .insight-person { min-height:44px; }
   .drawer-head, .drawer-content { padding-inline: 15px; }
   .primary-figure svg text { font-size: 20px; }
   .primary-figure svg .count-label { font-size: 17px; }

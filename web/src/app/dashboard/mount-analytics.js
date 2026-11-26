@@ -151,7 +151,7 @@ export function mountAnalytics(root) {
   const drawer = get('drawer');
   const metricButtons = Array.from(root.querySelectorAll('[data-metric]'));
   let selectedMetric = 'all';
-  let expandedInsight = null;
+  const collapsedInsights = new Set();
   let selectedHistoryMetric = 2;
   const mean = (values) => values.reduce((sum, value) => sum + value, 0) / values.length;
   function median(values) {
@@ -227,23 +227,30 @@ export function mountAnalytics(root) {
   function plotInsights() {
     const {period, records} = view;
     get('insight-period').textContent = (mode === 'calendar' ? calendarMonths[period] + ' 2026' : 'Месяц ' + (period + 1)) + ' · оценки 1–2 требуют проверки';
-    const numeric = trackedMetrics.map((metric, index) => {
-      const people = records.filter(person => person.intern[person.personalPeriod][index] <= 2);
-      const expanded = expandedInsight === String(index);
-      return '<button class="insight-toggle" type="button" data-insight="' + index + '" aria-expanded="' + expanded +
-        '"><span>' + metric.label + '</span><strong>' + people.length + ' из ' + records.length + '</strong></button>' +
-        (expanded ? '<div class="insight-list">' + (people.length ? people.map(person =>
-          '<button class="insight-person" type="button" data-person="' + person.id + '">' + person.id +
-          ' · ' + person.intern[person.personalPeriod][index] + ' из 5</button>').join('') :
-          '<span class="insight-empty">Низких оценок в этом месяце нет.</span>') + '</div>' : '');
+    const lowScores = trackedMetrics.map((metric, index) => ({
+      label: metric.label,
+      people: records.filter(person => person.intern[person.personalPeriod][index] <= 2),
+    }));
+    const numeric = lowScores.map(({label, people}, index) => {
+      const count = `<strong>${people.length} из ${records.length}</strong>`;
+      if (!people.length) return `<p class="insight-row insight-empty-row"><span>${label}</span>${count}</p>`;
+
+      const listId = `insight-people-${index}`;
+      const expanded = !collapsedInsights.has(index);
+      const entries = people.map(person => `<button class="insight-person" type="button" data-person="${person.id}">${person.id} · ${person.intern[person.personalPeriod][index]} из 5</button>`).join('');
+      return `<button class="insight-row insight-toggle" type="button" data-insight="${index}" aria-expanded="${expanded}" aria-controls="${listId}"><span id="insight-metric-${index}">${label}</span>${count}</button>` +
+        `<div id="${listId}" class="insight-list" role="region" aria-labelledby="insight-metric-${index}" tabindex="0"${expanded ? '' : ' hidden'}>${entries}</div>`;
     }).join('');
-    const textSignals = records.filter(person => issueAt(person, person.personalPeriod).kind === 'issue');
-    const signals = textSignals.length ? textSignals.map(person => '<button class="insight-person" type="button" data-person="' +
-      person.id + '">' + person.id + ' · ' + escapeText(issueAt(person, person.personalPeriod).topic) + '</button>').join('') :
-      '<span class="insight-empty">' + (dataset === 'demo' ? 'ИИ-разбор синтетической выборки не проводился.' : 'В сохранённых разборах трудности не выделены.') + '</span>';
-    get('insights').innerHTML = '<section class="insight-section"><h4>Низкие оценки стажёров</h4>' + numeric +
-      '</section><section class="insight-section"><h4>Темы в ответах · Haiku</h4><div class="insight-list">' +
-      signals + '</div></section>';
+    const noLowScores = lowScores.every(({people}) => people.length === 0) ? '<p class="insight-empty">Низких оценок за этот период нет.</p>' : '';
+    const textSignals = records.flatMap(person => {
+      const signal = issueAt(person, person.personalPeriod);
+      return signal.kind === 'issue' ? [`<button class="insight-person" type="button" data-person="${person.id}">${person.id} · ${escapeText(signal.topic)}</button>`] : [];
+    });
+    const signals = textSignals.length
+      ? `<div class="insight-list" role="region" aria-labelledby="insight-haiku-title" tabindex="0">${textSignals.join('')}</div>`
+      : `<p class="insight-empty">${dataset === 'demo' ? 'ИИ-разбор синтетической выборки не проводился.' : 'В сохранённых разборах трудности не выделены.'}</p>`;
+    get('insights').innerHTML = `<section class="insight-section"><h4>Низкие оценки стажёров</h4>${numeric}${noLowScores}</section>` +
+      `<section class="insight-section"><h4 id="insight-haiku-title">Темы в ответах · Haiku</h4>${signals}</section>`;
   }
 
 
@@ -712,9 +719,11 @@ export function mountAnalytics(root) {
     if (metric) { selectedMetric = metric.dataset.metric; render(); }
     const insight = event.target.closest('[data-insight]');
     if (insight) {
-      expandedInsight = expandedInsight === insight.dataset.insight ? null : insight.dataset.insight;
-      plotInsights();
-      root.querySelector('[data-insight="' + insight.dataset.insight + '"]').focus();
+      const index = Number(insight.dataset.insight);
+      const expanded = collapsedInsights.delete(index);
+      if (!expanded) collapsedInsights.add(index);
+      insight.setAttribute('aria-expanded', String(expanded));
+      get(insight.getAttribute('aria-controls')).hidden = !expanded;
     }
   });
   get('ranking-pagination').addEventListener('click', event => {
@@ -730,7 +739,7 @@ export function mountAnalytics(root) {
     if (!button) return;
     selectedMonth = Number(button.dataset.month);
     rankingPage = 1;
-    expandedInsight = null;
+    collapsedInsights.clear();
     expandedDistribution = null;
     expandedTopic = null;
     expandedDepartment = null;
@@ -741,7 +750,7 @@ export function mountAnalytics(root) {
     dataset = button.dataset.dataset;
     rankingPage = 1;
     showAllComparisons = false;
-    expandedInsight = null;
+    collapsedInsights.clear();
     expandedDistribution = null;
     expandedTopic = null;
     expandedDepartment = null;
@@ -751,7 +760,7 @@ export function mountAnalytics(root) {
     mode = button.dataset.view;
     selectedMonth = mode === 'calendar' ? 5 : 3;
     rankingPage = 1;
-    expandedInsight = null;
+    collapsedInsights.clear();
     expandedDistribution = null;
     expandedTopic = null;
     expandedDepartment = null;
